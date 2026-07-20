@@ -5,17 +5,20 @@ import { FormEvent, useMemo, useState } from "react";
 type View = "ringkasan" | "input" | "riwayat" | "material";
 type Role = "teknisi" | "pimpinan";
 type JobStatus = "Selesai" | "Pending";
+type WorkType = "PDA" | "IH" | "HSI" | "PT2" | "EXPAND ODP";
 
 type Job = {
   id: string;
   date: string;
   customer: string;
-  location: string;
-  type: "Pasang Baru" | "Assurance" | "Maintenance";
+  type: WorkType;
   status: JobStatus;
-  materials: string;
-  incentive: number;
-  technician: string;
+  reporterName: string;
+  reporterNik: string;
+  technician1Name: string;
+  technician1Nik: string;
+  technician2Name: string;
+  technician2Nik: string;
 };
 
 const initialJobs: Job[] = [
@@ -23,45 +26,53 @@ const initialJobs: Job[] = [
     id: "WO-260720-018",
     date: "20 Jul 2026",
     customer: "Budi Santoso",
-    location: "Jl. Melati No. 18, Bandung",
-    type: "Pasang Baru",
+    type: "HSI",
     status: "Selesai",
-    materials: "Kabel drop 35 m, konektor 2",
-    incentive: 20000,
-    technician: "Andi Pratama",
+    reporterName: "Andi Pratama",
+    reporterNik: "TK-24017",
+    technician1Name: "Andi Pratama",
+    technician1Nik: "TK-24017",
+    technician2Name: "Rizky Saputra",
+    technician2Nik: "TK-24022",
   },
   {
     id: "WO-260720-012",
     date: "20 Jul 2026",
     customer: "CV Sinar Jaya",
-    location: "Komplek Ruko Cendana B-7",
-    type: "Assurance",
+    type: "PDA",
     status: "Selesai",
-    materials: "Konektor 1, patch cord 1",
-    incentive: 15000,
-    technician: "Andi Pratama",
+    reporterName: "Andi Pratama",
+    reporterNik: "TK-24017",
+    technician1Name: "Andi Pratama",
+    technician1Nik: "TK-24017",
+    technician2Name: "Dimas Akbar",
+    technician2Nik: "TK-24009",
   },
   {
     id: "WO-190720-044",
     date: "19 Jul 2026",
     customer: "Rina Maharani",
-    location: "Jl. Cisaranten Kulon No. 4",
-    type: "Maintenance",
+    type: "IH",
     status: "Pending",
-    materials: "Kabel indoor 12 m",
-    incentive: 0,
-    technician: "Andi Pratama",
+    reporterName: "Andi Pratama",
+    reporterNik: "TK-24017",
+    technician1Name: "Andi Pratama",
+    technician1Nik: "TK-24017",
+    technician2Name: "Rizky Saputra",
+    technician2Nik: "TK-24022",
   },
   {
     id: "WO-190720-031",
     date: "19 Jul 2026",
     customer: "Toko Cahaya Baru",
-    location: "Pasar Baru Blok C-12",
-    type: "Pasang Baru",
+    type: "EXPAND ODP",
     status: "Selesai",
-    materials: "Kabel drop 28 m, konektor 2",
-    incentive: 20000,
-    technician: "Rizky Saputra",
+    reporterName: "Rizky Saputra",
+    reporterNik: "TK-24022",
+    technician1Name: "Rizky Saputra",
+    technician1Nik: "TK-24022",
+    technician2Name: "Dimas Akbar",
+    technician2Nik: "TK-24009",
   },
 ];
 
@@ -79,8 +90,6 @@ const navItems: { id: View; label: string; mark: string }[] = [
   { id: "material", label: "Material", mark: "04" },
 ];
 
-const rupiah = (value: number) => `Rp${new Intl.NumberFormat("id-ID").format(value)}`;
-
 export default function Home() {
   const [view, setView] = useState<View>("ringkasan");
   const [role, setRole] = useState<Role>("teknisi");
@@ -89,27 +98,28 @@ export default function Home() {
   const [notice, setNotice] = useState("");
 
   const visibleJobs = useMemo(() => {
-    const owned = role === "teknisi" ? jobs.filter((job) => job.technician === "Andi Pratama") : jobs;
+    const owned = role === "teknisi" ? jobs.filter((job) => job.technician1Name === "Andi Pratama" || job.technician2Name === "Andi Pratama") : jobs;
     return filter === "Semua" ? owned : owned.filter((job) => job.status === filter || job.type === filter);
   }, [filter, jobs, role]);
 
   const completed = visibleJobs.filter((job) => job.status === "Selesai");
-  const totalIncentive = completed.reduce((sum, job) => sum + job.incentive, 0);
-
   function saveJob(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const type = form.get("type") as Job["type"];
+    const type = form.get("type") as WorkType;
+    const psDate = String(form.get("psDate"));
     const newJob: Job = {
-      id: `WO-260720-${String(jobs.length + 19).padStart(3, "0")}`,
-      date: "20 Jul 2026",
+      id: String(form.get("workOrder")),
+      date: new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(`${psDate}T00:00:00Z`)),
       customer: String(form.get("customer")),
-      location: String(form.get("location")),
       type,
-      status: form.get("status") as JobStatus,
-      materials: String(form.get("materials")) || "Tidak ada material",
-      incentive: form.get("status") === "Selesai" ? (type === "Pasang Baru" ? 20000 : type === "Assurance" ? 15000 : 10000) : 0,
-      technician: "Andi Pratama",
+      status: "Selesai",
+      reporterName: String(form.get("name")),
+      reporterNik: String(form.get("nik")),
+      technician1Name: String(form.get("technician1Name")),
+      technician1Nik: String(form.get("technician1Nik")),
+      technician2Name: String(form.get("technician2Name")),
+      technician2Nik: String(form.get("technician2Nik")),
     };
     setJobs((current) => [newJob, ...current]);
     setNotice("Pekerjaan berhasil disimpan ke rekap Anda.");
@@ -121,8 +131,8 @@ export default function Home() {
     <main className="app-shell">
       <aside className="sidebar">
         <button className="brand" type="button" onClick={() => setView("ringkasan")} aria-label="Buka ringkasan">
-          <span className="brand-mark">TK</span>
-          <span><strong>TeknikKerja</strong><small>Monitor tim lapangan</small></span>
+          <span className="brand-mark">IH</span>
+          <span><strong>IndiHome Field</strong><small>Monitor tim lapangan</small></span>
         </button>
 
         <div className="role-switch" aria-label="Pilih tampilan akun">
@@ -159,7 +169,7 @@ export default function Home() {
         </header>
 
         {view === "ringkasan" && (
-          <Dashboard role={role} jobs={visibleJobs} completed={completed.length} totalIncentive={totalIncentive} onHistory={() => setView("riwayat")} />
+          <Dashboard role={role} jobs={visibleJobs} completed={completed.length} onHistory={() => setView("riwayat")} />
         )}
 
         {view === "input" && <JobForm onSubmit={saveJob} />}
@@ -191,7 +201,7 @@ function pageTitle(view: View, role: Role) {
   return "Pemakaian material";
 }
 
-function Dashboard({ role, jobs, completed, totalIncentive, onHistory }: { role: Role; jobs: Job[]; completed: number; totalIncentive: number; onHistory: () => void }) {
+function Dashboard({ role, jobs, completed, onHistory }: { role: Role; jobs: Job[]; completed: number; onHistory: () => void }) {
   const teamMode = role === "pimpinan";
   return (
     <div className="dashboard-grid">
@@ -207,8 +217,8 @@ function Dashboard({ role, jobs, completed, totalIncentive, onHistory }: { role:
           <p>{teamMode ? "2 teknisi sedang WFH" : "4 pekerjaan lagi untuk target"}</p>
         </article>
         <article className="stat-card">
-          <div className="stat-head"><span>Estimasi insentif</span><b>IDR</b></div>
-          <strong>{teamMode ? "Rp2,48 jt" : rupiah(Math.max(330000, totalIncentive))}</strong>
+          <div className="stat-head"><span>Jenis terbanyak</span><b>PS</b></div>
+          <strong>{teamMode ? "PDA" : "HSI"}</strong>
           <p>Periode 1 - 31 Juli</p>
         </article>
         <article className="stat-card">
@@ -238,8 +248,8 @@ function Dashboard({ role, jobs, completed, totalIncentive, onHistory }: { role:
         <div className="panel-heading"><div><p className="eyebrow">HARI INI</p><h2>Agenda kerja</h2></div><span className="count-badge">3</span></div>
         <div className="agenda-list">
           <article><time>08:00</time><div><strong>Briefing pagi</strong><span>Basecamp Area Timur</span></div><b className="done">Selesai</b></article>
-          <article><time>09:30</time><div><strong>Pasang baru</strong><span>Jl. Melati No. 18</span></div><b>Berjalan</b></article>
-          <article><time>14:00</time><div><strong>Maintenance</strong><span>Komplek Ruko Cendana</span></div><b className="muted">Berikutnya</b></article>
+          <article><time>09:30</time><div><strong>HSI</strong><span>WO-260720-018</span></div><b>Berjalan</b></article>
+          <article><time>14:00</time><div><strong>EXPAND ODP</strong><span>WO-260720-031</span></div><b className="muted">Berikutnya</b></article>
         </div>
         <div className="schedule-note"><span>WFH</span><p><strong>Rabu bekerja dari rumah</strong>Jam kerja tetap 08:00 - 17:00</p></div>
       </aside>
@@ -256,28 +266,32 @@ function JobForm({ onSubmit }: { onSubmit: (event: FormEvent<HTMLFormElement>) =
   return (
     <div className="form-layout">
       <form className="panel job-form" onSubmit={onSubmit}>
-        <div className="section-heading"><span>01</span><div><h2>Informasi pekerjaan</h2><p>Isi sesuai work order yang dikerjakan hari ini.</p></div></div>
+        <div className="section-heading"><span>01</span><div><h2>Data pelapor dan pekerjaan</h2><p>Isi identitas pelapor sesuai data kerja lapangan.</p></div></div>
         <div className="form-grid">
-          <label><span>Tanggal pekerjaan</span><input name="date" type="date" defaultValue="2026-07-20" required /></label>
-          <label><span>Jenis pekerjaan</span><select name="type" defaultValue="Pasang Baru"><option>Pasang Baru</option><option>Assurance</option><option>Maintenance</option></select></label>
-          <label><span>Nama pelanggan / lokasi</span><input name="customer" placeholder="Contoh: Budi Santoso" required /></label>
-          <label><span>Alamat pekerjaan</span><input name="location" placeholder="Masukkan alamat lengkap" required /></label>
-          <label><span>Teknisi utama</span><input value="Andi Pratama - TK-24017" readOnly /></label>
-          <label><span>Teknisi pendamping</span><select name="partner" defaultValue=""><option value="">Tanpa pendamping</option><option>Rizky Saputra - TK-24022</option><option>Dimas Akbar - TK-24009</option></select></label>
+          <label><span>Nama</span><input name="name" placeholder="Masukkan nama pelapor" required /></label>
+          <label><span>NIK</span><input name="nik" placeholder="Masukkan NIK pelapor" required /></label>
+          <label className="full"><span>Jenis</span><select name="type" defaultValue="PDA" required><option>PDA</option><option>IH</option><option>HSI</option><option>PT2</option><option>EXPAND ODP</option></select></label>
         </div>
 
-        <div className="section-heading second"><span>02</span><div><h2>Hasil dan material</h2><p>Catat hasil akhir serta material yang benar-benar terpakai.</p></div></div>
+        <div className="section-heading second"><span>02</span><div><h2>Data teknisi</h2><p>Masukkan nama dan NIK dua teknisi yang mengerjakan.</p></div></div>
         <div className="form-grid">
-          <label><span>Status pekerjaan</span><select name="status" defaultValue="Selesai"><option>Selesai</option><option>Pending</option></select></label>
-          <label><span>Nomor work order</span><input name="workOrder" placeholder="Contoh: WO-260720-019" /></label>
-          <label className="full"><span>Material terpakai</span><input name="materials" placeholder="Contoh: Kabel drop 20 m, konektor 2 pcs" /></label>
-          <label className="full"><span>Catatan teknisi</span><textarea name="notes" rows={4} placeholder="Kondisi lapangan, kendala, atau tindak lanjut..." /></label>
+          <label><span>Teknisi 1 - Nama</span><input name="technician1Name" placeholder="Nama teknisi 1" required /></label>
+          <label><span>Teknisi 1 - NIK</span><input name="technician1Nik" placeholder="NIK teknisi 1" required /></label>
+          <label><span>Teknisi 2 - Nama</span><input name="technician2Name" placeholder="Nama teknisi 2" required /></label>
+          <label><span>Teknisi 2 - NIK</span><input name="technician2Nik" placeholder="NIK teknisi 2" required /></label>
+        </div>
+
+        <div className="section-heading second"><span>03</span><div><h2>Data pelanggan dan PS</h2><p>Pastikan nomor work order dan tanggal PS sudah sesuai.</p></div></div>
+        <div className="form-grid">
+          <label><span>Work Order</span><input name="workOrder" placeholder="Contoh: WO-260720-019" required /></label>
+          <label><span>Nama Pelanggan</span><input name="customer" placeholder="Masukkan nama pelanggan" required /></label>
+          <label className="full"><span>Tanggal PS</span><input name="psDate" type="date" defaultValue="2026-07-20" required /></label>
         </div>
         <div className="form-footer"><p>Data dapat dilihat kembali melalui menu Riwayat kerja.</p><button className="primary-action" type="submit">Simpan pekerjaan</button></div>
       </form>
 
       <aside className="form-aside">
-        <article className="panel incentive-guide"><p className="eyebrow">SIMULASI INSENTIF</p><h2>Nilai per pekerjaan</h2><div><span>Pasang baru</span><strong>Rp20.000</strong></div><div><span>Assurance</span><strong>Rp15.000</strong></div><div><span>Maintenance</span><strong>Rp10.000</strong></div><small>Insentif dihitung setelah pekerjaan berstatus selesai dan diverifikasi pimpinan.</small></article>
+        <article className="panel incentive-guide"><p className="eyebrow">JENIS PEKERJAAN</p><h2>Kategori laporan PS</h2><div><span>PDA</span><strong>01</strong></div><div><span>IH / HSI</span><strong>02</strong></div><div><span>PT2 / EXPAND ODP</span><strong>03</strong></div><small>Pilih kategori sesuai work order yang diterima oleh tim teknisi.</small></article>
         <article className="info-box"><b>Jam pelaporan</b><p>Catat pekerjaan setelah aktivitas lapangan selesai. Rekap harian ditutup pukul 21:00 WIB.</p></article>
       </aside>
     </div>
@@ -290,11 +304,11 @@ function History({ jobs, filter, setFilter, role }: { jobs: Job[]; filter: strin
       <div className="panel-heading history-heading">
         <div><p className="eyebrow">JULI 2026</p><h2>{role === "teknisi" ? "Semua pekerjaan Anda" : "Semua pekerjaan tim"}</h2></div>
         <div className="filters" aria-label="Filter pekerjaan">
-          {["Semua", "Selesai", "Pending", "Pasang Baru", "Assurance", "Maintenance"].map((item) => <button key={item} className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>{item}</button>)}
+          {["Semua", "Selesai", "Pending", "PDA", "IH", "HSI", "PT2", "EXPAND ODP"].map((item) => <button key={item} className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>{item}</button>)}
         </div>
       </div>
-      <div className="history-summary"><span><b>{jobs.length}</b> pekerjaan ditampilkan</span><span><b>{jobs.filter((job) => job.status === "Selesai").length}</b> selesai</span><span><b>{rupiah(jobs.reduce((sum, job) => sum + job.incentive, 0))}</b> estimasi insentif</span></div>
-      <JobTable jobs={jobs} showTechnician={role === "pimpinan"} />
+      <div className="history-summary"><span><b>{jobs.length}</b> pekerjaan ditampilkan</span><span><b>{jobs.filter((job) => job.status === "Selesai").length}</b> selesai</span><span><b>{new Set(jobs.map((job) => job.type)).size}</b> jenis pekerjaan</span></div>
+      <JobTable jobs={jobs} />
     </section>
   );
 }
@@ -311,8 +325,8 @@ function Materials({ role }: { role: Role }) {
   );
 }
 
-function JobTable({ jobs, showTechnician = false }: { jobs: Job[]; showTechnician?: boolean }) {
+function JobTable({ jobs }: { jobs: Job[] }) {
   return (
-    <div className="table-scroll"><table className="job-table"><thead><tr><th>Work order</th>{showTechnician && <th>Teknisi</th>}<th>Pelanggan / lokasi</th><th>Jenis</th><th>Status</th><th>Material</th><th>Insentif</th></tr></thead><tbody>{jobs.map((job) => <tr key={job.id}><td><strong>{job.id}</strong><small>{job.date}</small></td>{showTechnician && <td>{job.technician}</td>}<td><strong>{job.customer}</strong><small>{job.location}</small></td><td><span className={`type ${job.type.toLowerCase().replace(" ", "-")}`}>{job.type}</span></td><td><span className={`status ${job.status.toLowerCase()}`}><i />{job.status}</span></td><td>{job.materials}</td><td><strong>{job.incentive ? rupiah(job.incentive) : "-"}</strong></td></tr>)}</tbody></table>{jobs.length === 0 && <div className="empty-state"><strong>Belum ada pekerjaan</strong><span>Coba pilih filter lainnya.</span></div>}</div>
+    <div className="table-scroll"><table className="job-table"><thead><tr><th>Work order / Tanggal PS</th><th>Nama / NIK</th><th>Nama pelanggan</th><th>Jenis</th><th>Teknisi 1</th><th>Teknisi 2</th><th>Status</th></tr></thead><tbody>{jobs.map((job) => <tr key={job.id}><td><strong>{job.id}</strong><small>{job.date}</small></td><td><strong>{job.reporterName}</strong><small>{job.reporterNik}</small></td><td><strong>{job.customer}</strong></td><td><span className={`type ${job.type.toLowerCase().replace(" ", "-")}`}>{job.type}</span></td><td><strong>{job.technician1Name}</strong><small>{job.technician1Nik}</small></td><td><strong>{job.technician2Name}</strong><small>{job.technician2Nik}</small></td><td><span className={`status ${job.status.toLowerCase()}`}><i />{job.status}</span></td></tr>)}</tbody></table>{jobs.length === 0 && <div className="empty-state"><strong>Belum ada pekerjaan</strong><span>Coba pilih filter lainnya.</span></div>}</div>
   );
 }
