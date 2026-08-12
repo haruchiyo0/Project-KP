@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require __DIR__ . '/config.php';
+require_once __DIR__ . '/config.php';
 $user = require_login();
 
 // Admin only — redirect teknisi to dashboard
@@ -9,7 +9,7 @@ if ($user['role'] !== 'admin') {
     exit;
 }
 
-$allTypes = ['PDA', 'IH', 'HSI', 'PT2', 'EXPAND ODP'];
+$allTypes = ['PDA', 'IH', 'HSI', 'DATIN', 'MOK', 'EXPAND ODP'];
 $monthNames = [
     '01' => 'Januari', '02' => 'Februari', '03' => 'Maret',
     '04' => 'April',   '05' => 'Mei',      '06' => 'Juni',
@@ -77,7 +77,8 @@ function typeClass(string $type): string {
         'PDA'        => 'type-pda',
         'IH'         => 'type-ih',
         'HSI'        => 'type-hsi',
-        'PT2'        => 'type-pt2',
+        'DATIN'      => 'type-datin',
+        'MOK'        => 'type-mok',
         'EXPAND ODP' => 'type-expand',
         default      => 'type-pda',
     };
@@ -96,19 +97,24 @@ function typeClass(string $type): string {
 <div class="page-transition-overlay pt-enter" id="pt-overlay"></div>
 <div class="app-layout">
     <aside class="sidebar">
-        <a class="brand" href="dashboard.php">
-            <div class="premium-logo">
-                <div class="logo-ring"></div>
-                <div class="logo-text">I<strong>H</strong></div>
-            </div>
-            <span>
-                <strong>IndiHome Field</strong>
-                <small>Monitor tim lapangan</small>
-            </span>
-        </a>
+        <div class="sidebar-header">
+            <a class="brand" href="dashboard.php">
+                <div class="premium-logo">
+                    <div class="logo-ring"></div>
+                    <div class="logo-text">I<strong>H</strong></div>
+                </div>
+                <span>
+                    <strong>IndiHome Field</strong>
+                    <small>Monitor tim lapangan</small>
+                </span>
+            </a>
+            <button class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Toggle Sidebar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+        </div>
         <nav>
-            <a href="dashboard.php"><span>01</span>Ringkasan</a>
-            <a class="active" href="reports.php"><span>02</span>Laporan pekerjaan</a>
+            <a href="dashboard.php"><span>01</span><span class="nav-text">Ringkasan</span></a>
+            <a class="active" href="reports.php"><span>02</span><span class="nav-text">Laporan pekerjaan</span></a>
         </nav>
         <div class="side-user">
             <span class="avatar avatar-red"><?= e(strtoupper(substr($user['name'], 0, 2))) ?></span>
@@ -276,6 +282,19 @@ function typeClass(string $type): string {
 
 <script>
 (function(){
+    /* ── Sidebar Toggle ── */
+    var toggleBtn = document.getElementById('sidebarToggleBtn');
+    var layout = document.querySelector('.app-layout');
+    if (toggleBtn && layout) {
+        if (localStorage.getItem('sidebarCollapsed') === 'true') {
+            layout.classList.add('collapsed');
+        }
+        toggleBtn.addEventListener('click', function() {
+            layout.classList.toggle('collapsed');
+            localStorage.setItem('sidebarCollapsed', layout.classList.contains('collapsed'));
+        });
+    }
+
     /* ── Page Transition ── */
     var pt = document.getElementById('pt-overlay');
     document.addEventListener('click', function(e){

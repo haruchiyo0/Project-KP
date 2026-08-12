@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require __DIR__ . '/config.php';
+require_once __DIR__ . '/config.php';
 $user = require_login();
 
 // Only technicians can input jobs — redirect admin to dashboard
@@ -9,8 +9,14 @@ if ($user['role'] === 'admin') {
     exit;
 }
 
-$types = ['PDA', 'IH', 'HSI', 'PT2', 'EXPAND ODP'];
+$types = ['PDA', 'IH', 'HSI', 'DATIN', 'MOK', 'EXPAND ODP'];
 $error = '';
+
+$allTechnicians = $db->query('SELECT name, nik FROM users WHERE role = "teknisi" ORDER BY name ASC')->fetchAll();
+$techMap = [];
+foreach ($allTechnicians as $t) {
+    $techMap[$t['nik']] = $t['name'];
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
@@ -18,24 +24,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $reporterNik = trim((string) ($_POST['reporter_nik'] ?? ''));
     $workType = trim((string) ($_POST['work_type'] ?? ''));
     $workOrder = trim((string) ($_POST['work_order'] ?? ''));
+    $noInet = trim((string) ($_POST['no_inet'] ?? ''));
     $customerName = trim((string) ($_POST['customer_name'] ?? ''));
     $psDate = trim((string) ($_POST['ps_date'] ?? ''));
     $technicians = [];
 
     for ($number = 1; $number <= 2; $number++) {
-        $name = trim((string) ($_POST["technician_{$number}_name"] ?? ''));
         $nik = trim((string) ($_POST["technician_{$number}_nik"] ?? ''));
-        if ($name !== '' || $nik !== '') {
-            if ($name === '' || $nik === '') {
-                $error = "Nama dan NIK Teknisi {$number} harus diisi lengkap.";
+        if ($nik !== '') {
+            if (!isset($techMap[$nik])) {
+                $error = "Teknisi {$number} tidak valid.";
                 break;
             }
-            $technicians[] = ['name' => $name, 'nik' => $nik];
+            $technicians[] = ['name' => $techMap[$nik], 'nik' => $nik];
         }
     }
 
     if (!$error && (!$reporterName || !$reporterNik || !$workOrder || !$customerName || !$psDate || !in_array($workType, $types, true))) {
         $error = 'Lengkapi seluruh data pekerjaan yang wajib diisi.';
+    }
+    if (!$error && $workType !== 'DATIN' && $noInet === '') {
+        $error = 'No. Inet wajib diisi untuk jenis pekerjaan ini.';
     }
     if (!$error && count($technicians) === 0) {
         $error = 'Minimal satu teknisi harus diisi.';
@@ -43,17 +52,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$error && count(array_unique(array_column($technicians, 'nik'))) !== count($technicians)) {
         $error = 'NIK Teknisi 1 dan Teknisi 2 tidak boleh sama.';
     }
+    if (!$error) {
+        $stmt = $db->prepare('SELECT COUNT(*) FROM jobs WHERE work_order = ?');
+        $stmt->execute([$workOrder]);
+        if ($stmt->fetchColumn() > 0) {
+            $error = 'Nomor Work Order / No ODP ini sudah pernah terdaftar, silakan periksa kembali.';
+        }
+    }
 
     if (!$error) {
         try {
             $db->beginTransaction();
+            $baseAmount = ($workType === 'MOK') ? 30000 : JOB_VALUE;
             $insertJob = $db->prepare(
-                'INSERT INTO jobs (reporter_name, reporter_nik, work_type, work_order, customer_name, ps_date, base_amount, created_by)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+                'INSERT INTO jobs (reporter_name, reporter_nik, work_type, work_order, no_inet, customer_name, ps_date, base_amount, created_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
-            $insertJob->execute([$reporterName, $reporterNik, $workType, $workOrder, $customerName, $psDate, JOB_VALUE, $user['id']]);
+            $insertJob->execute([$reporterName, $reporterNik, $workType, $workOrder, $noInet, $customerName, $psDate, $baseAmount, $user['id']]);
             $jobId = (int) $db->lastInsertId();
-            $share = intdiv(JOB_VALUE, count($technicians));
+            $share = intdiv($baseAmount, count($technicians));
             $insertTechnician = $db->prepare('INSERT INTO job_technicians (job_id, technician_name, technician_nik, share_amount) VALUES (?, ?, ?, ?)');
             foreach ($technicians as $technician) {
                 $insertTechnician->execute([$jobId, $technician['name'], $technician['nik'], $share]);
@@ -89,19 +106,24 @@ function old(string $key, string $default = ''): string
 <div class="page-transition-overlay pt-enter" id="pt-overlay"></div>
 <div class="app-layout">
     <aside class="sidebar">
-        <a class="brand" href="dashboard.php">
-            <div class="premium-logo">
-                <div class="logo-ring"></div>
-                <div class="logo-text">I<strong>H</strong></div>
-            </div>
-            <span>
-                <strong>IndiHome Field</strong>
-                <small>Monitor tim lapangan</small>
-            </span>
-        </a>
+        <div class="sidebar-header">
+            <a class="brand" href="dashboard.php">
+                <div class="premium-logo">
+                    <div class="logo-ring"></div>
+                    <div class="logo-text">I<strong>H</strong></div>
+                </div>
+                <span>
+                    <strong>IndiHome Field</strong>
+                    <small>Monitor tim lapangan</small>
+                </span>
+            </a>
+            <button class="sidebar-toggle" id="sidebarToggleBtn" aria-label="Toggle Sidebar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+        </div>
         <nav>
-            <a href="dashboard.php"><span>01</span>Ringkasan</a>
-            <a class="active" href="job-create.php"><span>02</span>Input pekerjaan</a>
+            <a href="dashboard.php"><span>01</span><span class="nav-text">Ringkasan</span></a>
+            <a class="active" href="job-create.php"><span>02</span><span class="nav-text">Input pekerjaan</span></a>
         </nav>
         <div class="side-user">
             <span class="avatar <?= $user['role'] === 'admin' ? 'avatar-red' : 'avatar-blue' ?>"><?= e(strtoupper(substr($user['name'], 0, 2))) ?></span>
@@ -140,15 +162,28 @@ function old(string $key, string $default = ''): string
 
                     <div class="form-section"><span>02</span><div><h2>Data teknisi</h2><p>Teknisi kedua boleh dikosongkan jika pekerjaan dilakukan seorang diri.</p></div></div>
                     <div class="form-grid">
-                        <label><span>Teknisi 1 — Nama</span><input id="input-tech1-name" name="technician_1_name" value="<?= old('technician_1_name', $user['role'] === 'teknisi' ? $user['name'] : '') ?>" required></label>
-                        <label><span>Teknisi 1 — NIK</span><input id="input-tech1-nik" name="technician_1_nik" value="<?= old('technician_1_nik', $user['role'] === 'teknisi' ? $user['nik'] : '') ?>" required></label>
-                        <label><span>Teknisi 2 — Nama</span><input id="input-tech2-name" name="technician_2_name" value="<?= old('technician_2_name') ?>" placeholder="Opsional"></label>
-                        <label><span>Teknisi 2 — NIK</span><input id="input-tech2-nik" name="technician_2_nik" value="<?= old('technician_2_nik') ?>" placeholder="Opsional"></label>
+                        <label class="full"><span>Teknisi 1 (Wajib)</span>
+                            <select name="technician_1_nik" id="select-tech-1" required>
+                                <option value="">-- Pilih Teknisi --</option>
+                                <?php foreach ($allTechnicians as $tech): ?>
+                                    <option value="<?= e($tech['nik']) ?>" <?= old('technician_1_nik', $user['role'] === 'teknisi' ? $user['nik'] : '') === $tech['nik'] ? 'selected' : '' ?>><?= e($tech['name']) ?> (<?= e($tech['nik']) ?>)</option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <label class="full"><span>Teknisi 2 (Opsional)</span>
+                            <select name="technician_2_nik" id="select-tech-2">
+                                <option value="">-- Tidak ada (Sendiri) --</option>
+                                <?php foreach ($allTechnicians as $tech): ?>
+                                    <option value="<?= e($tech['nik']) ?>" <?= old('technician_2_nik') === $tech['nik'] ? 'selected' : '' ?>><?= e($tech['name']) ?> (<?= e($tech['nik']) ?>)</option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
                     </div>
 
                     <div class="form-section"><span>03</span><div><h2>Data pelanggan & PS</h2><p>Pastikan nomor work order belum pernah digunakan sebelumnya.</p></div></div>
                     <div class="form-grid">
-                        <label><span>Work Order</span><input id="input-work-order" name="work_order" value="<?= old('work_order') ?>" placeholder="Contoh: WO-260720-019" required></label>
+                        <label id="lbl-wo"><span>Work Order</span><input id="input-work-order" name="work_order" value="<?= old('work_order') ?>" placeholder="Contoh: WO-260720-019" required></label>
+                        <label id="lbl-no-inet"><span>No. Inet</span><input id="input-no-inet" name="no_inet" value="<?= old('no_inet') ?>" placeholder="Contoh: 122xxx"></label>
                         <label><span>Nama Pelanggan</span><input id="input-customer-name" name="customer_name" value="<?= old('customer_name') ?>" required></label>
                         <label class="full"><span>Tanggal PS</span><input id="input-ps-date" type="date" name="ps_date" value="<?= old('ps_date', date('Y-m-d')) ?>" required></label>
                     </div>
@@ -166,15 +201,15 @@ function old(string $key, string $default = ''): string
                         <h2>Estimasi pendapatan</h2>
                         <div class="live-calc-row">
                             <span>Nilai pekerjaan</span>
-                            <strong><?= rupiah(JOB_VALUE) ?></strong>
+                            <strong id="calc-val"><?= rupiah(JOB_VALUE) ?></strong>
                         </div>
                         <div class="live-calc-row">
                             <span>Jika 1 teknisi</span>
-                            <strong><?= rupiah(JOB_VALUE) ?></strong>
+                            <strong id="calc-1"><?= rupiah(JOB_VALUE) ?></strong>
                         </div>
                         <div class="live-calc-row total">
                             <span>Jika 2 teknisi</span>
-                            <strong><?= rupiah(intdiv(JOB_VALUE, 2)) ?> / orang</strong>
+                            <strong id="calc-2"><?= rupiah(intdiv(JOB_VALUE, 2)) ?> / orang</strong>
                         </div>
                     </div>
 
@@ -195,6 +230,90 @@ function old(string $key, string $default = ''): string
 </div>
 <script>
 (function(){
+    /* ── Sidebar Toggle ── */
+    var toggleBtn = document.getElementById('sidebarToggleBtn');
+    var layout = document.querySelector('.app-layout');
+    if (toggleBtn && layout) {
+        if (localStorage.getItem('sidebarCollapsed') === 'true') {
+            layout.classList.add('collapsed');
+        }
+        toggleBtn.addEventListener('click', function() {
+            layout.classList.toggle('collapsed');
+            localStorage.setItem('sidebarCollapsed', layout.classList.contains('collapsed'));
+        });
+    }
+
+    /* ── Live Calculator Update ── */
+    var selType = document.getElementById('select-work-type');
+    if (selType) {
+        selType.addEventListener('change', function() {
+            var val = this.value === 'MOK' ? 30000 : <?= JOB_VALUE ?>;
+            var halff = Math.floor(val / 2);
+            var fmt = function(v) { return 'Rp' + v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."); };
+            var eVal = document.getElementById('calc-val');
+            var e1 = document.getElementById('calc-1');
+            var e2 = document.getElementById('calc-2');
+            if (eVal) eVal.textContent = fmt(val);
+            if (e1) e1.textContent = fmt(val);
+            if (e2) e2.textContent = fmt(halff) + ' / orang';
+
+            var inet = document.getElementById('lbl-no-inet');
+            if (inet) {
+                if (this.value === 'DATIN') {
+                    inet.style.display = 'none';
+                    inet.querySelector('input').removeAttribute('required');
+                } else {
+                    inet.style.display = '';
+                    inet.querySelector('input').setAttribute('required', 'required');
+                }
+            }
+            var lblWo = document.getElementById('lbl-wo');
+            if (lblWo) {
+                var span = lblWo.querySelector('span');
+                var inp = lblWo.querySelector('input');
+                if (this.value === 'EXPAND ODP') {
+                    span.textContent = 'No ODP';
+                    inp.placeholder = 'Contoh: ODP-...';
+                } else {
+                    span.textContent = 'Work Order';
+                    inp.placeholder = 'Contoh: WO-...';
+                }
+            }
+        });
+        selType.dispatchEvent(new Event('change'));
+    }
+
+    /* ── Prevent Duplicate Technician Selection ── */
+    var t1 = document.getElementById('select-tech-1');
+    var t2 = document.getElementById('select-tech-2');
+    if (t1 && t2) {
+        function syncTechs() {
+            var val1 = t1.value;
+            var val2 = t2.value;
+            Array.from(t2.options).forEach(function(opt) {
+                if (opt.value !== '' && opt.value === val1) {
+                    opt.style.display = 'none';
+                    opt.disabled = true;
+                } else {
+                    opt.style.display = '';
+                    opt.disabled = false;
+                }
+            });
+            Array.from(t1.options).forEach(function(opt) {
+                if (opt.value !== '' && opt.value === val2) {
+                    opt.style.display = 'none';
+                    opt.disabled = true;
+                } else {
+                    opt.style.display = '';
+                    opt.disabled = false;
+                }
+            });
+        }
+        t1.addEventListener('change', syncTechs);
+        t2.addEventListener('change', syncTechs);
+        syncTechs();
+    }
+
     /* ── Page Transition ── */
     var pt = document.getElementById('pt-overlay');
     document.addEventListener('click', function(e){

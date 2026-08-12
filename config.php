@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+date_default_timezone_set('Asia/Jakarta');
 
 const JOB_VALUE = 125000;
 
@@ -47,6 +48,12 @@ $db->exec(
         FOREIGN KEY(created_by) REFERENCES users(id)
     )'
 );
+
+try {
+    $db->exec('ALTER TABLE jobs ADD COLUMN no_inet TEXT DEFAULT ""');
+} catch (PDOException $e) {
+    // Column might already exist
+}
 
 $db->exec(
     'CREATE TABLE IF NOT EXISTS job_technicians (

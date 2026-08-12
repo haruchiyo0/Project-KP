@@ -5,7 +5,7 @@ import { FormEvent, useMemo, useState } from "react";
 type View = "ringkasan" | "input" | "riwayat" | "material";
 type Role = "teknisi" | "pimpinan";
 type JobStatus = "Selesai" | "Pending";
-type WorkType = "PDA" | "IH" | "HSI" | "PT2" | "EXPAND ODP";
+type WorkType = "PDA" | "IH" | "HSI" | "DATIN" | "MOK" | "EXPAND ODP";
 
 type Job = {
   id: string;
@@ -270,15 +270,25 @@ function JobForm({ onSubmit }: { onSubmit: (event: FormEvent<HTMLFormElement>) =
         <div className="form-grid">
           <label><span>Nama</span><input name="name" placeholder="Masukkan nama pelapor" required /></label>
           <label><span>NIK</span><input name="nik" placeholder="Masukkan NIK pelapor" required /></label>
-          <label className="full"><span>Jenis</span><select name="type" defaultValue="PDA" required><option>PDA</option><option>IH</option><option>HSI</option><option>PT2</option><option>EXPAND ODP</option></select></label>
+          <label className="full"><span>Jenis</span><select name="type" defaultValue="PDA" required><option>PDA</option><option>IH</option><option>HSI</option><option>DATIN</option><option>MOK</option><option>EXPAND ODP</option></select></label>
         </div>
 
-        <div className="section-heading second"><span>02</span><div><h2>Data teknisi</h2><p>Masukkan nama dan NIK dua teknisi yang mengerjakan.</p></div></div>
+        <div className="section-heading second"><span>02</span><div><h2>Data teknisi</h2><p>Pilih teknisi yang mengerjakan dari daftar. Teknisi 2 bisa dikosongkan.</p></div></div>
         <div className="form-grid">
-          <label><span>Teknisi 1 - Nama</span><input name="technician1Name" placeholder="Nama teknisi 1" required /></label>
-          <label><span>Teknisi 1 - NIK</span><input name="technician1Nik" placeholder="NIK teknisi 1" required /></label>
-          <label><span>Teknisi 2 - Nama</span><input name="technician2Name" placeholder="Nama teknisi 2" required /></label>
-          <label><span>Teknisi 2 - NIK</span><input name="technician2Nik" placeholder="NIK teknisi 2" required /></label>
+          <label className="full"><span>Teknisi 1 (Wajib)</span>
+            <select name="technician1Nik" required>
+              <option value="">Pilih Teknisi 1</option>
+              <option value="TK-001">Andi (TK-001)</option>
+              <option value="TK-002">Budi (TK-002)</option>
+            </select>
+          </label>
+          <label className="full"><span>Teknisi 2 (Opsional)</span>
+            <select name="technician2Nik">
+              <option value="">Tidak ada (Sendiri)</option>
+              <option value="TK-001">Andi (TK-001)</option>
+              <option value="TK-002">Budi (TK-002)</option>
+            </select>
+          </label>
         </div>
 
         <div className="section-heading second"><span>03</span><div><h2>Data pelanggan dan PS</h2><p>Pastikan nomor work order dan tanggal PS sudah sesuai.</p></div></div>
@@ -291,7 +301,7 @@ function JobForm({ onSubmit }: { onSubmit: (event: FormEvent<HTMLFormElement>) =
       </form>
 
       <aside className="form-aside">
-        <article className="panel incentive-guide"><p className="eyebrow">JENIS PEKERJAAN</p><h2>Kategori laporan PS</h2><div><span>PDA</span><strong>01</strong></div><div><span>IH / HSI</span><strong>02</strong></div><div><span>PT2 / EXPAND ODP</span><strong>03</strong></div><small>Pilih kategori sesuai work order yang diterima oleh tim teknisi.</small></article>
+        <article className="panel incentive-guide"><p className="eyebrow">JENIS PEKERJAAN</p><h2>Kategori laporan PS</h2><div><span>PDA</span><strong>01</strong></div><div><span>IH / HSI</span><strong>02</strong></div><div><span>DATIN / MOK / EXPAND ODP</span><strong>03</strong></div><small>Pilih kategori sesuai work order yang diterima oleh tim teknisi.</small></article>
         <article className="info-box"><b>Jam pelaporan</b><p>Catat pekerjaan setelah aktivitas lapangan selesai. Rekap harian ditutup pukul 21:00 WIB.</p></article>
       </aside>
     </div>
@@ -304,7 +314,7 @@ function History({ jobs, filter, setFilter, role }: { jobs: Job[]; filter: strin
       <div className="panel-heading history-heading">
         <div><p className="eyebrow">JULI 2026</p><h2>{role === "teknisi" ? "Semua pekerjaan Anda" : "Semua pekerjaan tim"}</h2></div>
         <div className="filters" aria-label="Filter pekerjaan">
-          {["Semua", "Selesai", "Pending", "PDA", "IH", "HSI", "PT2", "EXPAND ODP"].map((item) => <button key={item} className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>{item}</button>)}
+          {["Semua", "Selesai", "Pending", "PDA", "IH", "HSI", "DATIN", "MOK", "EXPAND ODP"].map((item) => <button key={item} className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>{item}</button>)}
         </div>
       </div>
       <div className="history-summary"><span><b>{jobs.length}</b> pekerjaan ditampilkan</span><span><b>{jobs.filter((job) => job.status === "Selesai").length}</b> selesai</span><span><b>{new Set(jobs.map((job) => job.type)).size}</b> jenis pekerjaan</span></div>

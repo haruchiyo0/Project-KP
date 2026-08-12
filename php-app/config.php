@@ -48,6 +48,12 @@ $db->exec(
     )'
 );
 
+try {
+    $db->exec('ALTER TABLE jobs ADD COLUMN no_inet TEXT DEFAULT ""');
+} catch (PDOException $e) {
+    // Column might already exist
+}
+
 $db->exec(
     'CREATE TABLE IF NOT EXISTS job_technicians (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

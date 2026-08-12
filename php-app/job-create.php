@@ -2,8 +2,14 @@
 declare(strict_types=1);
 require __DIR__ . '/config.php';
 $user = require_login();
-$types = ['PDA', 'IH', 'HSI', 'PT2', 'EXPAND ODP'];
+$types = ['PDA', 'IH', 'HSI', 'DATIN', 'MOK', 'EXPAND ODP'];
 $error = '';
+
+$allTechnicians = $db->query('SELECT name, nik FROM users WHERE role = "teknisi" ORDER BY name ASC')->fetchAll();
+$techMap = [];
+foreach ($allTechnicians as $t) {
+    $techMap[$t['nik']] = $t['name'];
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
@@ -11,24 +17,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $reporterNik = trim((string) ($_POST['reporter_nik'] ?? ''));
     $workType = trim((string) ($_POST['work_type'] ?? ''));
     $workOrder = trim((string) ($_POST['work_order'] ?? ''));
+    $noInet = trim((string) ($_POST['no_inet'] ?? ''));
     $customerName = trim((string) ($_POST['customer_name'] ?? ''));
     $psDate = trim((string) ($_POST['ps_date'] ?? ''));
     $technicians = [];
 
     for ($number = 1; $number <= 2; $number++) {
-        $name = trim((string) ($_POST["technician_{$number}_name"] ?? ''));
         $nik = trim((string) ($_POST["technician_{$number}_nik"] ?? ''));
-        if ($name !== '' || $nik !== '') {
-            if ($name === '' || $nik === '') {
-                $error = "Nama dan NIK Teknisi {$number} harus diisi lengkap.";
+        if ($nik !== '') {
+            if (!isset($techMap[$nik])) {
+                $error = "Teknisi {$number} tidak valid.";
                 break;
             }
-            $technicians[] = ['name' => $name, 'nik' => $nik];
+            $technicians[] = ['name' => $techMap[$nik], 'nik' => $nik];
         }
     }
 
     if (!$error && (!$reporterName || !$reporterNik || !$workOrder || !$customerName || !$psDate || !in_array($workType, $types, true))) {
         $error = 'Lengkapi seluruh data pekerjaan yang wajib diisi.';
+    }
+    if (!$error && $workType !== 'DATIN' && $noInet === '') {
+        $error = 'No. Inet wajib diisi untuk jenis pekerjaan ini.';
     }
     if (!$error && count($technicians) === 0) {
         $error = 'Minimal satu teknisi harus diisi.';
@@ -36,17 +45,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$error && count(array_unique(array_column($technicians, 'nik'))) !== count($technicians)) {
         $error = 'NIK Teknisi 1 dan Teknisi 2 tidak boleh sama.';
     }
+    if (!$error) {
+        $stmt = $db->prepare('SELECT COUNT(*) FROM jobs WHERE work_order = ?');
+        $stmt->execute([$workOrder]);
+        if ($stmt->fetchColumn() > 0) {
+            $error = 'Nomor Work Order / No ODP ini sudah pernah terdaftar, silakan periksa kembali.';
+        }
+    }
 
     if (!$error) {
         try {
             $db->beginTransaction();
+            $baseAmount = ($workType === 'MOK') ? 30000 : JOB_VALUE;
             $insertJob = $db->prepare(
-                'INSERT INTO jobs (reporter_name, reporter_nik, work_type, work_order, customer_name, ps_date, base_amount, created_by)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+                'INSERT INTO jobs (reporter_name, reporter_nik, work_type, work_order, no_inet, customer_name, ps_date, base_amount, created_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
-            $insertJob->execute([$reporterName, $reporterNik, $workType, $workOrder, $customerName, $psDate, JOB_VALUE, $user['id']]);
+            $insertJob->execute([$reporterName, $reporterNik, $workType, $workOrder, $noInet, $customerName, $psDate, $baseAmount, $user['id']]);
             $jobId = (int) $db->lastInsertId();
-            $share = intdiv(JOB_VALUE, count($technicians));
+            $share = intdiv($baseAmount, count($technicians));
             $insertTechnician = $db->prepare('INSERT INTO job_technicians (job_id, technician_name, technician_nik, share_amount) VALUES (?, ?, ?, ?)');
             foreach ($technicians as $technician) {
                 $insertTechnician->execute([$jobId, $technician['name'], $technician['nik'], $share]);
@@ -98,20 +115,33 @@ function old(string $key, string $default = ''): string
                 <div class="form-grid">
                     <label><span>Nama</span><input name="reporter_name" value="<?= old('reporter_name', $user['name']) ?>" required></label>
                     <label><span>NIK</span><input name="reporter_nik" value="<?= old('reporter_nik', $user['nik']) ?>" required></label>
-                    <label class="full"><span>Jenis</span><select name="work_type" required><?php foreach ($types as $type): ?><option <?= old('work_type', 'PDA') === $type ? 'selected' : '' ?>><?= e($type) ?></option><?php endforeach; ?></select></label>
+                    <label class="full"><span>Jenis</span><select id="select-work-type" name="work_type" required><?php foreach ($types as $type): ?><option <?= old('work_type', 'PDA') === $type ? 'selected' : '' ?>><?= e($type) ?></option><?php endforeach; ?></select></label>
                 </div>
 
                 <div class="form-section"><span>02</span><div><h2>Data teknisi</h2><p>Teknisi kedua boleh dikosongkan jika pekerjaan dilakukan sendiri.</p></div></div>
                 <div class="form-grid">
-                    <label><span>Teknisi 1 - Nama</span><input name="technician_1_name" value="<?= old('technician_1_name', $user['role'] === 'teknisi' ? $user['name'] : '') ?>" required></label>
-                    <label><span>Teknisi 1 - NIK</span><input name="technician_1_nik" value="<?= old('technician_1_nik', $user['role'] === 'teknisi' ? $user['nik'] : '') ?>" required></label>
-                    <label><span>Teknisi 2 - Nama</span><input name="technician_2_name" value="<?= old('technician_2_name') ?>" placeholder="Opsional"></label>
-                    <label><span>Teknisi 2 - NIK</span><input name="technician_2_nik" value="<?= old('technician_2_nik') ?>" placeholder="Opsional"></label>
+                    <label class="full"><span>Teknisi 1 (Wajib)</span>
+                        <select name="technician_1_nik" id="select-tech-1" required>
+                            <option value="">-- Pilih Teknisi --</option>
+                            <?php foreach ($allTechnicians as $tech): ?>
+                                <option value="<?= e($tech['nik']) ?>" <?= old('technician_1_nik', $user['role'] === 'teknisi' ? $user['nik'] : '') === $tech['nik'] ? 'selected' : '' ?>><?= e($tech['name']) ?> (<?= e($tech['nik']) ?>)</option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+                    <label class="full"><span>Teknisi 2 (Opsional)</span>
+                        <select name="technician_2_nik" id="select-tech-2">
+                            <option value="">-- Tidak ada (Sendiri) --</option>
+                            <?php foreach ($allTechnicians as $tech): ?>
+                                <option value="<?= e($tech['nik']) ?>" <?= old('technician_2_nik') === $tech['nik'] ? 'selected' : '' ?>><?= e($tech['name']) ?> (<?= e($tech['nik']) ?>)</option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
                 </div>
 
                 <div class="form-section"><span>03</span><div><h2>Data pelanggan dan PS</h2><p>Pastikan nomor work order belum pernah digunakan.</p></div></div>
                 <div class="form-grid">
-                    <label><span>Work Order</span><input name="work_order" value="<?= old('work_order') ?>" placeholder="Contoh: WO-260720-019" required></label>
+                    <label id="lbl-wo"><span>Work Order</span><input name="work_order" value="<?= old('work_order') ?>" placeholder="Contoh: WO-260720-019" required></label>
+                    <label id="lbl-no-inet"><span>No. Inet</span><input name="no_inet" value="<?= old('no_inet') ?>" placeholder="Contoh: 122xxx"></label>
                     <label><span>Nama Pelanggan</span><input name="customer_name" value="<?= old('customer_name') ?>" required></label>
                     <label class="full"><span>Tanggal PS</span><input type="date" name="ps_date" value="<?= old('ps_date', date('Y-m-d')) ?>" required></label>
                 </div>
@@ -126,5 +156,68 @@ function old(string $key, string $default = ''): string
         </div>
     </main>
 </div>
+<script>
+(function(){
+    var selType = document.getElementById('select-work-type');
+    if (selType) {
+        selType.addEventListener('change', function() {
+            var inet = document.getElementById('lbl-no-inet');
+            if (inet) {
+                if (this.value === 'DATIN') {
+                    inet.style.display = 'none';
+                    inet.querySelector('input').removeAttribute('required');
+                } else {
+                    inet.style.display = '';
+                    inet.querySelector('input').setAttribute('required', 'required');
+                }
+            }
+            var lblWo = document.getElementById('lbl-wo');
+            if (lblWo) {
+                var span = lblWo.querySelector('span');
+                var inp = lblWo.querySelector('input');
+                if (this.value === 'EXPAND ODP') {
+                    span.textContent = 'No ODP';
+                    inp.placeholder = 'Contoh: ODP-...';
+                } else {
+                    span.textContent = 'Work Order';
+                    inp.placeholder = 'Contoh: WO-...';
+                }
+            }
+        });
+        selType.dispatchEvent(new Event('change'));
+    }
+
+    /* ── Prevent Duplicate Technician Selection ── */
+    var t1 = document.getElementById('select-tech-1');
+    var t2 = document.getElementById('select-tech-2');
+    if (t1 && t2) {
+        function syncTechs() {
+            var val1 = t1.value;
+            var val2 = t2.value;
+            Array.from(t2.options).forEach(function(opt) {
+                if (opt.value !== '' && opt.value === val1) {
+                    opt.style.display = 'none';
+                    opt.disabled = true;
+                } else {
+                    opt.style.display = '';
+                    opt.disabled = false;
+                }
+            });
+            Array.from(t1.options).forEach(function(opt) {
+                if (opt.value !== '' && opt.value === val2) {
+                    opt.style.display = 'none';
+                    opt.disabled = true;
+                } else {
+                    opt.style.display = '';
+                    opt.disabled = false;
+                }
+            });
+        }
+        t1.addEventListener('change', syncTechs);
+        t2.addEventListener('change', syncTechs);
+        syncTechs();
+    }
+})();
+</script>
 </body>
 </html>

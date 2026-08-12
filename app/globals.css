@@ -110,7 +110,7 @@ td strong, td small { display: block; }
 td strong { color: #28352f; font-size: 9px; }
 td small { max-width: 190px; overflow: hidden; margin-top: 4px; color: #8b9691; font-size: 8px; white-space: nowrap; text-overflow: ellipsis; }
 .type, .stock { display: inline-block; padding: 4px 6px; border-radius: 3px; color: #a5000e; background: #ffe8ea; font-size: 8px; font-weight: 750; white-space: nowrap; }
-.type.ih, .type.pt2 { color: #3e647f; background: #e6eef4; }
+.type.ih, .type.datin, .type.mok { color: #3e647f; background: #e6eef4; }
 .type.expand-odp { color: #6f5417; background: #fff0cf; }
 .status { font-size: 8px; font-weight: 750; white-space: nowrap; }
 .status i { display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: #35a275; }
