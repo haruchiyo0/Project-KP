@@ -76,7 +76,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $insertTechnician->execute([$jobId, $technician['name'], $technician['nik'], $share]);
             }
             $db->commit();
-            flash('success', 'Pekerjaan berhasil disimpan. Setiap teknisi mendapatkan ' . rupiah($share) . '.');
+
+            send_to_google_sheets([
+                'id' => $workOrder,
+                'date' => date('d M Y', strtotime($psDate)),
+                'customer' => $customerName,
+                'type' => $workType,
+                'status' => 'Selesai',
+                'reporterName' => $reporterName,
+                'reporterNik' => $reporterNik,
+                'technician1Name' => $technicians[0]['name'] ?? '',
+                'technician1Nik' => $technicians[0]['nik'] ?? '',
+                'technician2Name' => $technicians[1]['name'] ?? '',
+                'technician2Nik' => $technicians[1]['nik'] ?? ''
+            ]);
+
+            flash('success', 'Pekerjaan berhasil disimpan ke Database & terkirim ke Google Sheets! Setiap teknisi mendapatkan ' . rupiah($share) . '.');
             header('Location: dashboard.php');
             exit;
         } catch (PDOException $exception) {
