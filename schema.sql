@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS `jobs` (
     `ps_date` DATE NOT NULL,
     `base_amount` INT NOT NULL DEFAULT 125000,
     `status` VARCHAR(30) NOT NULL DEFAULT 'Selesai',
-    `location_notes` TEXT,
+    `description` TEXT,
     `created_by` INT NOT NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON DELETE CASCADE

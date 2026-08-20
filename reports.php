@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/config.php';
 $user = require_login();
 
-// Admin only — redirect teknisi to dashboard
+
 if ($user['role'] !== 'admin') {
     header('Location: dashboard.php');
     exit;
@@ -17,19 +17,19 @@ $monthNames = [
     '10' => 'Oktober', '11' => 'November',  '12' => 'Desember',
 ];
 
-// Get all registered technicians for filter dropdown
+
 $technicians = $db->query('SELECT name, nik FROM users WHERE role = "teknisi" ORDER BY name')->fetchAll();
 
-// Get available years from existing data
-$availableYears = $db->query('SELECT DISTINCT strftime("%Y", ps_date) AS year FROM jobs ORDER BY year DESC')->fetchAll();
 
-// Read filter parameters from URL
+$availableYears = $db->query('SELECT DISTINCT DATE_FORMAT(ps_date, "%Y") AS year FROM jobs ORDER BY year DESC')->fetchAll();
+
+
 $filterMonth      = trim((string) ($_GET['month'] ?? ''));
 $filterYear       = trim((string) ($_GET['year'] ?? ''));
 $filterTechnician = trim((string) ($_GET['technician'] ?? ''));
 $filterType       = trim((string) ($_GET['type'] ?? ''));
 
-// Build dynamic WHERE clause
+
 $where  = [];
 $params = [];
 
@@ -62,7 +62,7 @@ $whereClause = count($where) > 0 ? 'WHERE ' . implode(' AND ', $where) : '';
 
 $stmt = $db->prepare(
     "SELECT j.*,
-        GROUP_CONCAT(jt.technician_name || ' (' || jt.technician_nik || ')', ' | ') AS technicians,
+        GROUP_CONCAT(CONCAT(jt.technician_name, ' (', jt.technician_nik, ')') SEPARATOR ' | ') AS technicians,
         COUNT(jt.id) AS technician_count
      FROM jobs j
      LEFT JOIN job_technicians jt ON jt.job_id = j.id
@@ -73,9 +73,9 @@ $stmt = $db->prepare(
 $stmt->execute($params);
 $jobs = $stmt->fetchAll();
 
-// Calculate filtered summary stats
+
 $filteredCount  = count($jobs);
-$filteredIncome = array_sum(array_map(static fn(array $j): int => (int) $j['base_amount'], $jobs));
+$filteredIncome = array_sum(array_map(fn(array $j): int => $filterTechnician !== '' ? (int) floor((int)$j['base_amount'] / max(1, (int)$j['technician_count'])) : (int) $j['base_amount'], $jobs));
 $filteredAvg    = $filteredCount > 0 ? intdiv($filteredIncome, $filteredCount) : 0;
 
 $hasFilter = $filterMonth !== '' || $filterYear !== '' || $filterTechnician !== '' || $filterType !== '';
@@ -317,7 +317,7 @@ function typeClass(string $type): string {
 
 <script>
 (function(){
-    /* ── Sidebar Toggle ── */
+    /* Sidebar Toggle */
     var toggleBtn = document.getElementById('sidebarToggleBtn');
     var layout = document.querySelector('.app-layout');
     if (toggleBtn && layout) {
@@ -330,7 +330,7 @@ function typeClass(string $type): string {
         });
     }
 
-    /* ── Page Transition ── */
+    /* Page Transition */
     var pt = document.getElementById('pt-overlay');
     document.addEventListener('click', function(e){
         var a = e.target.closest('a[href]');
@@ -345,7 +345,7 @@ function typeClass(string $type): string {
         if (e.persisted) pt.className = 'page-transition-overlay pt-enter';
     });
 
-    /* ── Real-time Clock ── */
+    /* Real-time Clock */
     var clockEl = document.getElementById('liveClock');
     if (clockEl){
         var ct = clockEl.querySelector('.clock-time');
@@ -356,7 +356,7 @@ function typeClass(string $type): string {
         tick(); setInterval(tick, 1000);
     }
 
-    /* ── Animated Counters ── */
+    /* Animated Counters */
     function countUp(el){
         var raw = el.textContent.trim();
         var isRp = raw.indexOf('Rp') > -1;
@@ -377,7 +377,7 @@ function typeClass(string $type): string {
     }
     document.querySelectorAll('.report-stat strong').forEach(countUp);
 
-    /* ── 3D Card Tilt on stat cards ── */
+    /* 3D Card Tilt */
     document.querySelectorAll('.report-stat').forEach(function(c){
         c.addEventListener('mousemove', function(e){
             var r = c.getBoundingClientRect();
@@ -392,7 +392,7 @@ function typeClass(string $type): string {
         });
     });
 
-    /* ── Scroll Reveal for table ── */
+    /* Scroll Reveal */
     var sr = document.querySelectorAll('.report-body .table-panel');
     if ('IntersectionObserver' in window){
         var io = new IntersectionObserver(function(entries){
@@ -405,7 +405,7 @@ function typeClass(string $type): string {
         sr.forEach(function(el){ el.classList.add('in-view'); });
     }
 
-    /* ── Button Ripple ── */
+    /* Button Ripple */
     document.querySelectorAll('.primary-button, .secondary-button').forEach(function(btn){
         btn.addEventListener('click', function(e){
             var r = btn.getBoundingClientRect();

@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/config.php';
 $user = require_login();
 
-// Only technicians can input jobs — redirect admin to dashboard
+
 if ($user['role'] === 'admin') {
     header('Location: dashboard.php');
     exit;
@@ -274,7 +274,7 @@ function old(string $key, string $default = ''): string
 </div>
 <script>
 (function(){
-    /* ── Sidebar Toggle ── */
+    /* Sidebar Toggle */
     var toggleBtn = document.getElementById('sidebarToggleBtn');
     var layout = document.querySelector('.app-layout');
     if (toggleBtn && layout) {
@@ -287,7 +287,7 @@ function old(string $key, string $default = ''): string
         });
     }
 
-    /* ── Live Calculator Update ── */
+    /* Live Calculator Update */
     var selType = document.getElementById('select-work-type');
     if (selType) {
         selType.addEventListener('change', function() {
@@ -316,7 +316,7 @@ function old(string $key, string $default = ''): string
         selType.dispatchEvent(new Event('change'));
     }
 
-    /* ── Prevent Duplicate Technician Selection ── */
+    /* Prevent Duplicate Technician Selection */
     var t1 = document.getElementById('select-tech-1');
     var t2 = document.getElementById('select-tech-2');
     if (t1 && t2) {
@@ -347,7 +347,7 @@ function old(string $key, string $default = ''): string
         syncTechs();
     }
 
-    /* ── Page Transition ── */
+    /* Page Transition */
     var pt = document.getElementById('pt-overlay');
     document.addEventListener('click', function(e){
         var a = e.target.closest('a[href]');
@@ -367,7 +367,7 @@ function old(string $key, string $default = ''): string
         if (e.persisted) pt.className = 'page-transition-overlay pt-enter';
     });
 
-    /* ── Form Micro-interactions ── */
+    /* Form Micro-interactions */
     document.querySelectorAll('.work-form input, .work-form select').forEach(function(inp){
         function check(){
             if (inp.value && inp.value.trim()) inp.classList.add('input-filled');
@@ -378,7 +378,7 @@ function old(string $key, string $default = ''): string
         check();
     });
 
-    /* ── Toast for Errors ── */
+    /* Toast for Errors */
     var alertEl = document.querySelector('.alert');
     if (alertEl){
         var ok = alertEl.classList.contains('success');
@@ -401,7 +401,7 @@ function old(string $key, string $default = ''): string
         setTimeout(dismiss, 4500);
     }
 
-    /* ── Button Ripple ── */
+    /* Button Ripple */
     document.querySelectorAll('.primary-button, .secondary-button').forEach(function(btn){
         btn.addEventListener('click', function(e){
             var r = btn.getBoundingClientRect();

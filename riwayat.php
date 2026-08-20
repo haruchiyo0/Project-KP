@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/config.php';
 $user = require_login();
 
-// Admin diarahkan ke reports, riwayat hanya untuk teknisi
+
 if ($user['role'] === 'admin') {
     header('Location: reports.php');
     exit;
@@ -18,7 +18,7 @@ $endDate = $cycle['end'];
 $selectedMonth = $cycle['month'];
 $selectedYear = $cycle['year'];
 
-// Nama bulan untuk UI
+
 $monthNames = [
     1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
     5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
@@ -27,11 +27,11 @@ $monthNames = [
 
 $selectedPeriodName = $monthNames[$selectedMonth] . ' ' . $selectedYear;
 
-// Fetch Data Pekerjaan berdasarkan rentang tanggal
+
 $statement = $db->prepare(
     'SELECT j.*, COALESCE(jt.share_amount, 0) AS share_amount,
         (SELECT COUNT(*) FROM job_technicians WHERE job_id = j.id) AS technician_count,
-        (SELECT GROUP_CONCAT(technician_name || " (" || technician_nik || ")", " | ") FROM job_technicians WHERE job_id = j.id) AS technicians
+        (SELECT GROUP_CONCAT(CONCAT(technician_name, " (", technician_nik, ")") SEPARATOR " | ") FROM job_technicians WHERE job_id = j.id) AS technicians
      FROM jobs j
      JOIN job_technicians jt ON jt.job_id = j.id AND jt.technician_nik = :nik
      WHERE j.ps_date >= :start_date AND j.ps_date <= :end_date

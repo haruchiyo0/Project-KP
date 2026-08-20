@@ -202,9 +202,14 @@ input:focus, select:focus { border-color: var(--red); box-shadow: 0 0 0 3px var(
    =================================================================== */
 .admin-hero {
     position: relative; overflow: hidden;
-    padding: 44px 48px 40px;
+    padding: 44px 48px 60px;
     background: linear-gradient(135deg, var(--charcoal) 0%, #1e1215 60%, #2a0f14 100%);
     color: #fff;
+}
+.hero-edge-fade {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 50px;
+    background: linear-gradient(to bottom, rgba(243,244,246,0) 0%, var(--soft) 100%);
+    pointer-events: none; z-index: 2;
 }
 .admin-hero::before {
     content: ""; position: absolute; width: 500px; height: 500px; right: -120px; top: -200px;
@@ -225,7 +230,7 @@ input:focus, select:focus { border-color: var(--red); box-shadow: 0 0 0 3px var(
 .admin-hero .header-actions .secondary-button:hover { background: rgba(255,255,255,.12); color: #fff; }
 
 /* Inline stats inside hero */
-.hero-stats { display: flex; gap: 24px; margin-top: 32px; position: relative; z-index: 1; }
+.hero-stats { display: flex; gap: 24px; margin-top: 32px; position: relative; z-index: 10; }
 .hero-stat {
     min-width: 160px; padding: 18px 22px; border-radius: 14px;
     background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.06);
@@ -241,10 +246,10 @@ input:focus, select:focus { border-color: var(--red); box-shadow: 0 0 0 3px var(
 /* ===================================================================
    ADMIN — BODY CONTENT
    =================================================================== */
-.admin-body { padding: 32px 48px 56px; }
+.admin-body { padding: 32px 48px 56px; margin-top: 0; position: relative; z-index: 10; }
 
 /* Work type distribution cards */
-.distribution-section { margin-bottom: 32px; }
+.distribution-section { margin-top: 48px; margin-bottom: 32px; }
 .distribution-section h2 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
 .distribution-grid {
     display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 16px;
@@ -276,7 +281,7 @@ input:focus, select:focus { border-color: var(--red); box-shadow: 0 0 0 3px var(
    =================================================================== */
 .tech-hero {
     position: relative; overflow: hidden;
-    padding: 40px 48px 36px;
+    padding: 40px 48px 60px;
     background: linear-gradient(135deg, #0c2d48 0%, #145374 50%, #0c2d48 100%);
     color: #fff;
 }
@@ -332,7 +337,7 @@ input:focus, select:focus { border-color: var(--red); box-shadow: 0 0 0 3px var(
 
 /* Earnings overview cards in tech hero */
 .tech-earnings-row {
-    position: relative; z-index: 1;
+    position: relative; z-index: 10;
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 28px;
 }
 .earning-card {
@@ -355,7 +360,7 @@ input:focus, select:focus { border-color: var(--red); box-shadow: 0 0 0 3px var(
 /* ===================================================================
    TEKNISI — BODY
    =================================================================== */
-.tech-body { padding: 32px 48px 56px; }
+.tech-body { padding: 32px 48px 56px; margin-top: 0; position: relative; z-index: 10; }
 
 /* Job cards (teknisi view - card layout instead of table) */
 .job-cards-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
@@ -405,7 +410,7 @@ input:focus, select:focus { border-color: var(--red); box-shadow: 0 0 0 3px var(
 /* ===================================================================
    ADMIN TABLE (enhanced)
    =================================================================== */
-.panel { border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--paper); box-shadow: var(--shadow-sm); }
+.panel { border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--paper); box-shadow: var(--shadow-sm); margin-bottom: 32px; }
 .table-panel { padding: 28px; }
 .panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 .panel-heading h2 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }

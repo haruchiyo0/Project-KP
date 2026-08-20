@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     ps_date DATE NOT NULL,
     base_amount INT NOT NULL DEFAULT 125000,
     status VARCHAR(50) DEFAULT 'Selesai',
-    location_notes TEXT,
+    description TEXT,
     created_by INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(created_by) REFERENCES users(id)

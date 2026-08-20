@@ -13,7 +13,7 @@ $endDate = $cycle['end'];
 if ($user['role'] === 'admin') {
     $statement = $db->prepare(
         'SELECT j.*,
-            GROUP_CONCAT(jt.technician_name || " (" || jt.technician_nik || ")", " | ") AS technicians,
+            GROUP_CONCAT(CONCAT(jt.technician_name, " (", jt.technician_nik, ")") SEPARATOR " | ") AS technicians,
             COUNT(jt.id) AS technician_count
          FROM jobs j
          LEFT JOIN job_technicians jt ON jt.job_id = j.id
@@ -28,13 +28,13 @@ if ($user['role'] === 'admin') {
     $totalIncome = array_sum(array_column($jobs, 'base_amount'));
     $technicianCount = (int) $db->query('SELECT COUNT(*) FROM users WHERE role = "teknisi"')->fetchColumn();
 
-    // Count per type for distribution cards
+
     $typeCounts = [];
     foreach ($allTypes as $t) { $typeCounts[$t] = 0; }
     foreach ($jobs as $job) { $typeCounts[$job['work_type']] = ($typeCounts[$job['work_type']] ?? 0) + 1; }
     $maxTypeCount = max(1, max($typeCounts));
 
-    // Top Technicians Performance (Current Month)
+
     $techPerformanceStmt = $db->prepare('
         SELECT u.name, COUNT(jt.id) as job_count, SUM(jt.share_amount) as total_revenue
         FROM job_technicians jt
@@ -47,9 +47,9 @@ if ($user['role'] === 'admin') {
     $techPerformanceStmt->execute(['start_date' => $startDate, 'end_date' => $endDate]);
     $techPerformance = $techPerformanceStmt->fetchAll();
 
-    // Monthly Trend (Last 6 Months)
+
     $monthlyTrendStmt = $db->query('
-        SELECT strftime("%Y-%m", ps_date) as month, COUNT(*) as total_jobs
+        SELECT DATE_FORMAT(ps_date, "%Y-%m") as month, COUNT(*) as total_jobs
         FROM jobs
         GROUP BY month
         ORDER BY month DESC
@@ -60,7 +60,7 @@ if ($user['role'] === 'admin') {
 } else {
     $statement = $db->prepare(
         'SELECT j.*, COALESCE(jt.share_amount, 0) AS share_amount,
-            GROUP_CONCAT(all_jt.technician_name || " (" || all_jt.technician_nik || ")", " | ") AS technicians,
+            GROUP_CONCAT(CONCAT(all_jt.technician_name, " (", all_jt.technician_nik, ")") SEPARATOR " | ") AS technicians,
             COUNT(all_jt.id) AS technician_count
          FROM jobs j
          LEFT JOIN job_technicians jt ON jt.job_id = j.id AND jt.technician_nik = :nik
@@ -81,7 +81,7 @@ if ($user['role'] === 'admin') {
     $totalIncome = array_sum(array_column($jobs, 'share_amount'));
     $technicianCount = 1;
 
-    // Average per job
+
     $avgIncome = $jobCount > 0 ? intdiv($totalIncome, $jobCount) : 0;
 }
 
@@ -212,6 +212,7 @@ function typeClass(string $type): string {
                 <small>Terdaftar di sistem</small>
             </div>
         </div>
+        <div class="hero-edge-fade"></div>
     </div>
 
     <div class="admin-body">
@@ -424,6 +425,7 @@ function typeClass(string $type): string {
                 <small>Bulan ini (26 ke 25)</small>
             </div>
         </div>
+        <div class="hero-edge-fade"></div>
     </div>
 
     <div class="tech-body">
@@ -477,7 +479,7 @@ function typeClass(string $type): string {
 </div>
 <script>
 (function(){
-    /* ── Sidebar Toggle ── */
+    /* Sidebar Toggle */
     var toggleBtn = document.getElementById('sidebarToggleBtn');
     var layout = document.querySelector('.app-layout');
     if (toggleBtn && layout) {
@@ -490,7 +492,7 @@ function typeClass(string $type): string {
         });
     }
 
-    /* ── Page Transition ── */
+    /* Page Transition */
     var pt = document.getElementById('pt-overlay');
     document.addEventListener('click', function(e){
         var a = e.target.closest('a[href]');
@@ -505,7 +507,7 @@ function typeClass(string $type): string {
         if (e.persisted) pt.className = 'page-transition-overlay pt-enter';
     });
 
-    /* ── Animated Counters ── */
+    /* Animated Counters */
     function countUp(el){
         var raw = el.textContent.trim();
         var isRp = raw.indexOf('Rp') > -1;
@@ -526,7 +528,7 @@ function typeClass(string $type): string {
     }
     document.querySelectorAll('.hero-stat strong, .earning-card strong, .dist-count').forEach(countUp);
 
-    /* ── 3D Card Tilt ── */
+    /* 3D Card Tilt */
     document.querySelectorAll('.dist-card, .job-card, .earning-card').forEach(function(c){
         c.addEventListener('mousemove', function(e){
             var r = c.getBoundingClientRect();
@@ -541,7 +543,7 @@ function typeClass(string $type): string {
         });
     });
 
-    /* ── Scroll Reveal ── */
+    /* Scroll Reveal */
     var sr = document.querySelectorAll('.admin-body .dist-card, .admin-body .table-panel, .tech-body .job-card');
     if ('IntersectionObserver' in window){
         var io = new IntersectionObserver(function(entries){
@@ -554,7 +556,7 @@ function typeClass(string $type): string {
         sr.forEach(function(el){ el.classList.add('in-view'); });
     }
 
-    /* ── Toast Notification ── */
+    /* Toast Notification */
     var alertEl = document.querySelector('.alert');
     if (alertEl){
         var ok = alertEl.classList.contains('success');
@@ -577,7 +579,7 @@ function typeClass(string $type): string {
         setTimeout(dismiss, 4500);
     }
 
-    /* ── Gradient Mesh ── */
+    /* Gradient Mesh */
     var hero = document.querySelector('.admin-hero');
     if (hero){
         var mesh = document.createElement('div');
@@ -586,7 +588,7 @@ function typeClass(string $type): string {
         hero.insertBefore(mesh, hero.firstChild);
     }
 
-    /* ── Real-time Clock ── */
+    /* Real-time Clock */
     var clockEl = document.getElementById('liveClock');
     if (clockEl){
         var ct = clockEl.querySelector('#clockTime');
@@ -601,14 +603,14 @@ function typeClass(string $type): string {
         tick(); setInterval(tick, 1000);
     }
 
-    /* ── Dynamic Greeting ── */
+    /* Dynamic Greeting */
     var gEl = document.getElementById('dynGreeting');
     if (gEl){
         var hr = new Date().getHours();
         gEl.textContent = hr<11?'Selamat Pagi':hr<15?'Selamat Siang':hr<18?'Selamat Sore':'Selamat Malam';
     }
 
-    /* ── Button Ripple ── */
+    /* Button Ripple */
     document.querySelectorAll('.primary-button, .secondary-button').forEach(function(btn){
         btn.addEventListener('click', function(e){
             var r = btn.getBoundingClientRect();
@@ -636,7 +638,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if(overlay) overlay.addEventListener('click', toggleSidebar);
 });
 
-    /* ── Chart.js Setup ── */
+    /* Chart.js Setup */
     <?php if ($user['role'] === 'admin'): ?>
     <?php $top10Tech = array_slice($techPerformance, 0, 10); ?>
     const techLabels = <?= json_encode(array_column($top10Tech, 'name')) ?>;
