@@ -216,7 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         100% { width: 100%; }
     }
     .intro-progress-text {
-        position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+        position: absolute; bottom: 24px; left: 0; width: 100%; text-align: center;
         font-size: 10px; font-weight: 600; letter-spacing: 0.25em;
         color: #555; text-transform: uppercase;
         opacity: 0; animation: fade-in 1s 1.2s forwards;
@@ -349,12 +349,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <button id="btn-login" class="primary-button" type="submit">Masuk</button>
                 </form>
 
-                <div class="demo-accounts">
-                    <p>Akun demo</p>
-                    <div><span>Pimpinan</span><code>admin / admin123</code></div>
-                    <div><span>Teknisi</span><code>andi / teknisi123</code></div>
-                    <div><span>Teknisi</span><code>rizky / teknisi123</code></div>
-                </div>
+
             </div>
         </section>
     </main>
