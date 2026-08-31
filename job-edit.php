@@ -28,6 +28,22 @@ if ($user['role'] !== 'admin' && (int)$job['created_by'] !== (int)$user['id']) {
     exit;
 }
 
+// Check if there is an active pending request
+try {
+    $reqCheck = $db->prepare("SELECT request_type FROM job_requests WHERE job_id = ? AND status = 'pending' LIMIT 1");
+    $reqCheck->execute([$jobId]);
+    $pendingReq = $reqCheck->fetch();
+    
+    if ($user['role'] !== 'admin' && $pendingReq) {
+        $typeLabel = $pendingReq['request_type'] === 'delete' ? 'HAPUS' : 'EDIT';
+        flash('error', "Pekerjaan ini sedang dalam proses pengajuan $typeLabel ke Pimpinan. Harap tunggu persetujuan.");
+        header('Location: riwayat.php');
+        exit;
+    }
+} catch (PDOException $e) {
+    // Ignore if table doesn't exist yet
+}
+
 $stmt = $db->prepare('SELECT technician_nik FROM job_technicians WHERE job_id = ? ORDER BY id ASC');
 $stmt->execute([$jobId]);
 $techs = $stmt->fetchAll(PDO::FETCH_COLUMN);
@@ -42,6 +58,38 @@ foreach ($allTechnicians as $t) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
+
+    if (isset($_POST['delete_job']) && $_POST['delete_job'] == '1') {
+        if ($user['role'] === 'teknisi') {
+            try {
+                $req = $db->prepare("INSERT INTO job_requests (job_id, requester_id, request_type, status) VALUES (?, ?, 'delete', 'pending')");
+                $req->execute([$jobId, $user['id']]);
+                flash('success', 'Pengajuan HAPUS telah dikirim ke Pimpinan. Menunggu persetujuan.');
+                header('Location: riwayat.php');
+                exit;
+            } catch (PDOException $e) {
+                $error = 'Gagal mengajukan penghapusan. Pastikan Pimpinan sudah membuat tabel persetujuan di pengaturan.';
+            }
+        } else {
+            // ADMIN langsung hapus
+            try {
+                // Hapus di Google Sheets secara otomatis
+                send_to_google_sheets([
+                    'action' => 'delete',
+                    'id' => $job['work_order']
+                ]);
+
+                $del = $db->prepare('DELETE FROM jobs WHERE id = ?');
+                $del->execute([$jobId]);
+                flash('success', 'Pekerjaan berhasil dihapus dari website dan Google Sheets secara otomatis!');
+                header('Location: reports.php');
+                exit;
+            } catch (PDOException $e) {
+                $error = 'Gagal menghapus pekerjaan.';
+            }
+        }
+    }
+
     $reporterName = trim((string) ($_POST['reporter_name'] ?? ''));
     $reporterNik = trim((string) ($_POST['reporter_nik'] ?? ''));
     $workType = trim((string) ($_POST['work_type'] ?? ''));
@@ -84,52 +132,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!$error) {
-        try {
-            $db->beginTransaction();
-            $baseAmount = ($workType === 'MOK') ? 30000 : JOB_VALUE;
-            
-            $updateJob = $db->prepare(
-                'UPDATE jobs SET reporter_name=?, reporter_nik=?, work_type=?, work_order=?, no_inet=?, customer_name=?, ps_date=?, description=?, base_amount=?
-                 WHERE id=?'
-            );
-            $updateJob->execute([$reporterName, $reporterNik, $workType, $workOrder, $noInet, $customerName, $psDate, $description, $baseAmount, $jobId]);
-            
-            $db->prepare('DELETE FROM job_technicians WHERE job_id = ?')->execute([$jobId]);
-            
-            $share = intdiv($baseAmount, count($technicians));
-            $insertTechnician = $db->prepare('INSERT INTO job_technicians (job_id, technician_name, technician_nik, share_amount) VALUES (?, ?, ?, ?)');
-            foreach ($technicians as $technician) {
-                $insertTechnician->execute([$jobId, $technician['name'], $technician['nik'], $share]);
-            }
-            $db->commit();
-
-            send_to_google_sheets([
-                'action' => 'update',
-                'oldId' => $oldWorkOrder,
-                'id' => $workOrder,
-                'date' => date('d M Y', strtotime($psDate)),
-                'customer' => $customerName,
-                'type' => $workType,
-                'status' => 'Selesai',
-                'technician1Name' => $technicians[0]['name'] ?? '',
-                'technician1Nik' => $technicians[0]['nik'] ?? '',
-                'technician2Name' => $technicians[1]['name'] ?? '',
-                'technician2Nik' => $technicians[1]['nik'] ?? '',
-                'incomePerTech' => $share
-            ]);
-
-            flash('success', 'Data pekerjaan berhasil diperbarui ke Database & Google Sheets!');
-            if ($user['role'] === 'admin') {
-                header('Location: reports.php');
-            } else {
+        if ($user['role'] === 'teknisi') {
+            try {
+                $proposedData = json_encode([
+                    'reporter_name' => $reporterName,
+                    'reporter_nik' => $reporterNik,
+                    'work_type' => $workType,
+                    'work_order' => $workOrder,
+                    'no_inet' => $noInet,
+                    'customer_name' => $customerName,
+                    'ps_date' => $psDate,
+                    'description' => $description,
+                    'technicians' => $technicians // array
+                ]);
+                $req = $db->prepare("INSERT INTO job_requests (job_id, requester_id, request_type, proposed_data, status) VALUES (?, ?, 'edit', ?, 'pending')");
+                $req->execute([$jobId, $user['id'], $proposedData]);
+                flash('success', 'Pengajuan EDIT telah dikirim ke Pimpinan. Menunggu persetujuan.');
                 header('Location: riwayat.php');
+                exit;
+            } catch (PDOException $e) {
+                $error = 'Gagal mengajukan edit. Pastikan tabel persetujuan sudah dibuat oleh admin.';
             }
-            exit;
-        } catch (PDOException $exception) {
-            if ($db->inTransaction()) {
-                $db->rollBack();
+        } else {
+            // ADMIN langsung simpan
+            try {
+                $db->beginTransaction();
+                $baseAmount = ($workType === 'MOK') ? 30000 : JOB_VALUE;
+                
+                $updateJob = $db->prepare(
+                    'UPDATE jobs SET reporter_name=?, reporter_nik=?, work_type=?, work_order=?, no_inet=?, customer_name=?, ps_date=?, description=?, base_amount=?
+                     WHERE id=?'
+                );
+                $updateJob->execute([$reporterName, $reporterNik, $workType, $workOrder, $noInet, $customerName, $psDate, $description, $baseAmount, $jobId]);
+                
+                $db->prepare('DELETE FROM job_technicians WHERE job_id = ?')->execute([$jobId]);
+                
+                $share = intdiv($baseAmount, count($technicians));
+                $insertTechnician = $db->prepare('INSERT INTO job_technicians (job_id, technician_name, technician_nik, share_amount) VALUES (?, ?, ?, ?)');
+                foreach ($technicians as $technician) {
+                    $insertTechnician->execute([$jobId, $technician['name'], $technician['nik'], $share]);
+                }
+                $db->commit();
+
+                send_to_google_sheets([
+                    'action' => 'update',
+                    'oldId' => $oldWorkOrder,
+                    'id' => $workOrder,
+                    'date' => date('d M Y', strtotime($psDate)),
+                    'customer' => $customerName,
+                    'type' => $workType,
+                    'status' => 'Selesai',
+                    'technician1Name' => $technicians[0]['name'] ?? '',
+                    'technician1Nik' => $technicians[0]['nik'] ?? '',
+                    'technician2Name' => $technicians[1]['name'] ?? '',
+                    'technician2Nik' => $technicians[1]['nik'] ?? '',
+                    'incomePerTech' => $share
+                ]);
+
+                flash('success', 'Data pekerjaan berhasil diperbarui ke Database & Google Sheets!');
+                header('Location: reports.php');
+                exit;
+            } catch (PDOException $exception) {
+                if ($db->inTransaction()) {
+                    $db->rollBack();
+                }
+                $error = str_contains($exception->getMessage(), 'UNIQUE') ? 'Nomor work order sudah pernah digunakan.' : 'Data gagal disimpan. Silakan coba lagi.';
             }
-            $error = str_contains($exception->getMessage(), 'UNIQUE') ? 'Nomor work order sudah pernah digunakan.' : 'Data gagal disimpan. Silakan coba lagi.';
         }
     }
 }
@@ -144,8 +212,8 @@ function old(string $key, $default = ''): string
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Form pencatatan pekerjaan baru teknisi IndiHome.">
-    <title>Edit Pekerjaan | IndiHome Field</title>
+    <meta name="description" content="Form pencatatan pekerjaan baru teknisi KedatonGas.">
+    <title>Edit Pekerjaan | KedatonGas</title>
     <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
@@ -156,7 +224,7 @@ function old(string $key, $default = ''): string
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
     </button>
     <a class="brand" href="dashboard.php">
-        <div class="premium-logo"><div class="logo-ring"></div><div class="logo-text">I<strong>H</strong></div></div>
+        <div class="premium-logo"><div class="logo-ring"></div><div class="logo-text">K<strong>G</strong></div></div>
     </a>
     <div style="width:40px"></div>
 </div>
@@ -167,10 +235,10 @@ function old(string $key, $default = ''): string
             <a class="brand" href="dashboard.php">
                 <div class="premium-logo">
                     <div class="logo-ring"></div>
-                    <div class="logo-text">I<strong>H</strong></div>
+                    <div class="logo-text">K<strong>G</strong></div>
                 </div>
                 <span>
-                    <strong>IndiHome Field</strong>
+                    <strong>KedatonGas</strong>
                     <small>Monitor tim lapangan</small>
                 </span>
             </a>
@@ -238,7 +306,7 @@ function old(string $key, $default = ''): string
                     <div class="form-grid">
                         <label class="full"><span>Teknisi 1 (Wajib)</span>
                             <select name="technician_1_nik" id="select-tech-1" required>
-                                <option value="">-- Pilih Teknisi --</option>
+                                <option value="">-- PilKG Teknisi --</option>
                                 <?php foreach ($allTechnicians as $tech): ?>
                                     <option value="<?= e($tech['nik']) ?>" <?= old('technician_1_nik', $techs[0] ?? '') === $tech['nik'] ? 'selected' : '' ?>><?= e($tech['name']) ?> (<?= e($tech['nik']) ?>)</option>
                                 <?php endforeach; ?>
@@ -264,8 +332,13 @@ function old(string $key, $default = ''): string
                     </div>
 
                     <div class="form-footer">
-                        <p>Pendapatan teknisi dihitung otomatis setelah data disimpan.</p>
-                        <button id="btn-submit-job" class="primary-button" type="submit">Perbarui pekerjaan</button>
+                        <?php if ($user['role'] === 'admin'): ?>
+                            <p>Data pekerjaan akan langsung diperbarui.</p>
+                            <button id="btn-submit-job" class="primary-button" type="submit">Simpan Perubahan</button>
+                        <?php else: ?>
+                            <p>Perubahan akan diajukan ke Pimpinan untuk disetujui terlebih dahulu.</p>
+                            <button id="btn-submit-job" class="primary-button" type="submit" style="background-color: #f59e0b; border-color: #f59e0b; color: white;">Ajukan Perubahan</button>
+                        <?php endif; ?>
                     </div>
                 </form>
 
@@ -296,7 +369,7 @@ function old(string $key, $default = ''): string
 
                     <article class="info-card">
                         <strong>Catatan penting</strong>
-                        <p>Pendapatan teknisi dihitung berdasarkan NIK yang tercatat pada setiap pekerjaan. Pastikan data NIK sudah benar sebelum menyimpan.</p>
+                        <p>Pendapatan teknisi dKGitung berdasarkan NIK yang tercatat pada setiap pekerjaan. Pastikan data NIK sudah benar sebelum menyimpan.</p>
                     </article>
                 </aside>
             </div>

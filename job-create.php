@@ -113,8 +113,8 @@ function old(string $key, string $default = ''): string
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Form pencatatan pekerjaan baru teknisi IndiHome.">
-    <title>Input Pekerjaan | IndiHome Field</title>
+    <meta name="description" content="Form pencatatan pekerjaan baru teknisi KedatonGas.">
+    <title>Input Pekerjaan | KedatonGas</title>
     <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
@@ -125,7 +125,7 @@ function old(string $key, string $default = ''): string
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
     </button>
     <a class="brand" href="dashboard.php">
-        <div class="premium-logo"><div class="logo-ring"></div><div class="logo-text">I<strong>H</strong></div></div>
+        <div class="premium-logo"><div class="logo-ring"></div><div class="logo-text">K<strong>G</strong></div></div>
     </a>
     <div style="width:40px"></div>
 </div>
@@ -136,10 +136,10 @@ function old(string $key, string $default = ''): string
             <a class="brand" href="dashboard.php">
                 <div class="premium-logo">
                     <div class="logo-ring"></div>
-                    <div class="logo-text">I<strong>H</strong></div>
+                    <div class="logo-text">K<strong>G</strong></div>
                 </div>
                 <span>
-                    <strong>IndiHome Field</strong>
+                    <strong>KedatonGas</strong>
                     <small>Monitor tim lapangan</small>
                 </span>
             </a>
@@ -207,7 +207,7 @@ function old(string $key, string $default = ''): string
                     <div class="form-grid">
                         <label class="full"><span>Teknisi 1 (Wajib)</span>
                             <select name="technician_1_nik" id="select-tech-1" required>
-                                <option value="">-- Pilih Teknisi --</option>
+                                <option value="">-- PilKG Teknisi --</option>
                                 <?php foreach ($allTechnicians as $tech): ?>
                                     <option value="<?= e($tech['nik']) ?>" <?= old('technician_1_nik', $user['role'] === 'teknisi' ? $user['nik'] : '') === $tech['nik'] ? 'selected' : '' ?>><?= e($tech['name']) ?> (<?= e($tech['nik']) ?>)</option>
                                 <?php endforeach; ?>
@@ -233,7 +233,7 @@ function old(string $key, string $default = ''): string
                     </div>
 
                     <div class="form-footer">
-                        <p>Pendapatan teknisi dihitung otomatis setelah data disimpan.</p>
+                        <p>Pendapatan teknisi dKGitung otomatis setelah data disimpan.</p>
                         <button id="btn-submit-job" class="primary-button" type="submit">Simpan pekerjaan</button>
                     </div>
                 </form>
@@ -265,7 +265,7 @@ function old(string $key, string $default = ''): string
 
                     <article class="info-card">
                         <strong>Catatan penting</strong>
-                        <p>Pendapatan teknisi dihitung berdasarkan NIK yang tercatat pada setiap pekerjaan. Pastikan data NIK sudah benar sebelum menyimpan.</p>
+                        <p>Pendapatan teknisi dKGitung berdasarkan NIK yang tercatat pada setiap pekerjaan. Pastikan data NIK sudah benar sebelum menyimpan.</p>
                     </article>
                 </aside>
             </div>

@@ -35,7 +35,7 @@ if ($userCount === 0) {
     
     $seedwt = $db->prepare('INSERT INTO work_types (code, name, base_tariff, description, is_active) VALUES (?, ?, ?, ?, 1)');
     $seedwt->execute(['PDA', 'Pasang Baru PDA', 125000, 'Pekerjaan Pasang Baru PDA']);
-    $seedwt->execute(['IH', 'IndiHome Standard', 125000, 'Pemasangan Layanan IndiHome']);
+    $seedwt->execute(['IH', 'KedatonGas Standard', 125000, 'Pemasangan Layanan KedatonGas']);
     $seedwt->execute(['HSI', 'High Speed Internet', 125000, 'Pemasangan Internet HSI']);
     $seedwt->execute(['DATIN', 'Data & Internet Corporate', 125000, 'Layanan Datin Korporat']);
     $seedwt->execute(['MOK', 'Migrasi OK / Perbaikan', 30000, 'Migrasi atau Perbaikan Kabel/Perangkat']);
@@ -54,6 +54,20 @@ function get_all_work_types($db, $onlyActive = true) {
         ? 'SELECT * FROM work_types WHERE is_active = 1 ORDER BY code ASC'
         : 'SELECT * FROM work_types ORDER BY code ASC';
     return $db->query($query)->fetchAll();
+}
+
+function get_pending_requests_count($db) {
+    try {
+        $stmt = $db->query("
+            SELECT COUNT(*) 
+            FROM job_requests r
+            JOIN jobs j ON r.job_id = j.id
+            WHERE r.status = 'pending'
+        ");
+        return (int) $stmt->fetchColumn();
+    } catch (\Throwable $e) {
+        return 0;
+    }
 }
 
 function e($value) {
@@ -136,7 +150,7 @@ function get_cycle_dates($month = null, $year = null) {
     ];
 }
 
-const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyo6wiwsHb4V5ylZnNy5xabXtEba7SaOVB93615r7HZoCXggY8WoEfQ-TnKiveJ4Th0/exec'; // <-- Ganti dengan URL baru jika diperlukan
+const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbz5msbG5Ghw60XwQu07_jxjpGlkaEb_j90JkkP7T1y0kYEpCYdQIZLMwSJtIdKgmfrK/exec'; // <-- Ganti dengan URL baru jika diperlukan
 
 function send_to_google_sheets($payload) {
     try {

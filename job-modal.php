@@ -162,10 +162,31 @@ document.addEventListener('DOMContentLoaded', function() {
             elShare.textContent = formatRupiah(data.share_amount);
         }
 
-        // Show edit button if technician and is creator
-        if (currentUserRole === 'teknisi' && parseInt(data.created_by) === currentUserId) {
-            elFooter.style.display = 'block';
-            elFooter.innerHTML = '<a href="job-edit.php?id=' + data.id + '" class="primary-button" style="display: inline-block;">Edit Pekerjaan</a>';
+        // Show edit & delete buttons if admin or (technician and is creator)
+        if (currentUserRole === 'admin' || (currentUserRole === 'teknisi' && parseInt(data.created_by) === currentUserId)) {
+            elFooter.style.display = 'flex';
+            elFooter.style.justifyContent = 'flex-end';
+            elFooter.style.gap = '12px';
+            elFooter.style.alignItems = 'center';
+            
+            if (currentUserRole === 'teknisi' && data.pending_request) {
+                // There is a pending request, disable buttons for teknisi
+                elFooter.innerHTML = '<div style="background: rgba(245,158,11,0.1); color: #f59e0b; padding: 10px 14px; border-radius: 8px; border: 1px dashed rgba(245,158,11,0.3); font-size: 13px; width: 100%; text-align: center;">Pekerjaan ini sedang dalam proses PENGAJUAN ' + data.pending_request.toUpperCase() + ' ke Pimpinan.</div>';
+            } else {
+                let deleteBtnHtml = '';
+                if (currentUserRole === 'admin') {
+                    deleteBtnHtml = '<button type="submit" name="delete_job" value="1" class="secondary-button" style="color: #ff4757; border-color: rgba(255,71,87,0.3); background: rgba(255,71,87,0.05);" onclick="return confirm(\'Yakin ingin MENGHAPUS pekerjaan ini secara permanen dari website?\')">Hapus Pekerjaan</button>';
+                } else {
+                    deleteBtnHtml = '<button type="submit" name="delete_job" value="1" class="secondary-button" style="color: #f59e0b; border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.05);" onclick="return confirm(\'Ajukan penghapusan pekerjaan ini ke Pimpinan?\')">Ajukan Hapus</button>';
+                }
+
+                elFooter.innerHTML = 
+                    '<form method="POST" action="job-edit.php?id=' + data.id + '" style="margin:0;">' +
+                    '<input type="hidden" name="csrf_token" value="<?= $_SESSION["csrf_token"] ?? "" ?>">' +
+                    deleteBtnHtml +
+                    '</form>' +
+                    '<a href="job-edit.php?id=' + data.id + '" class="primary-button" style="display: inline-block;">' + (currentUserRole === 'admin' ? 'Edit Pekerjaan' : 'Ajukan Edit') + '</a>';
+            }
         } else {
             elFooter.style.display = 'none';
         }

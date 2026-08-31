@@ -18,7 +18,7 @@ if (!is_array($data)) {
 $action    = strtoupper(trim((string) ($data['action'] ?? '')));
 $workOrder = trim((string) ($data['work_order'] ?? $data['id'] ?? ''));
 
-if (empty($workOrder)) {
+if (empty($workOrder) && $action !== 'UPDATE_USER') {
     http_response_code(400);
     echo json_encode([
         'status' => 'error',
@@ -88,11 +88,39 @@ if ($action === 'DELETE' || $action === 'REMOVE') {
         ]);
         exit;
     }
+} elseif ($action === 'UPDATE_USER') {
+    $username = trim((string) ($data['username'] ?? ''));
+    $status   = trim((string) ($data['status'] ?? 'active'));
+    
+    if (empty($username)) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Username tidak ditemukan.']);
+        exit;
+    }
+
+    try {
+        $upd = $db->prepare('UPDATE users SET status = ? WHERE username = ?');
+        $upd->execute([$status === 'inactive' ? 'inactive' : 'active', $username]);
+
+        log_activity($db, null, 'Google Sheets Sync', 'USER_STATUS_SYNC', "Status user '$username' diubah menjadi '$status' via Spreadsheet");
+
+        echo json_encode([
+            'status' => 'success',
+            'action' => 'UPDATE_USER',
+            'username' => $username,
+            'message' => "Status user $username berhasil diperbarui."
+        ]);
+        exit;
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Gagal memperbarui status user: ' . $e->getMessage()]);
+        exit;
+    }
 } else {
     http_response_code(400);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Aksi tidak dikenal. Gunakan action DELETE atau UPDATE.'
+        'message' => 'Aksi tidak dikenal. Gunakan action DELETE, UPDATE, atau UPDATE_USER.'
     ]);
     exit;
 }

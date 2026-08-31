@@ -31,7 +31,8 @@ $selectedPeriodName = $monthNames[$selectedMonth] . ' ' . $selectedYear;
 $statement = $db->prepare(
     'SELECT j.*, COALESCE(jt.share_amount, 0) AS share_amount,
         (SELECT COUNT(*) FROM job_technicians WHERE job_id = j.id) AS technician_count,
-        (SELECT GROUP_CONCAT(CONCAT(technician_name, " (", technician_nik, ")") SEPARATOR " | ") FROM job_technicians WHERE job_id = j.id) AS technicians
+        (SELECT GROUP_CONCAT(CONCAT(technician_name, " (", technician_nik, ")") SEPARATOR " | ") FROM job_technicians WHERE job_id = j.id) AS technicians,
+        (SELECT request_type FROM job_requests WHERE job_id = j.id AND status = "pending" LIMIT 1) AS pending_request
      FROM jobs j
      JOIN job_technicians jt ON jt.job_id = j.id AND jt.technician_nik = :nik
      WHERE j.ps_date >= :start_date AND j.ps_date <= :end_date
@@ -64,8 +65,8 @@ function typeClass(string $type): string {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Riwayat pendapatan teknisi IndiHome.">
-    <title>Riwayat Pendapatan | IndiHome Field</title>
+    <meta name="description" content="Riwayat pendapatan teknisi KedatonGas.">
+    <title>Riwayat Pendapatan | KedatonGas</title>
     <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
@@ -76,7 +77,7 @@ function typeClass(string $type): string {
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
     </button>
     <a class="brand" href="dashboard.php">
-        <div class="premium-logo"><div class="logo-ring"></div><div class="logo-text">I<strong>H</strong></div></div>
+        <div class="premium-logo"><div class="logo-ring"></div><div class="logo-text">K<strong>G</strong></div></div>
     </a>
     <div style="width:40px"></div>
 </div>
@@ -87,10 +88,10 @@ function typeClass(string $type): string {
             <a class="brand" href="dashboard.php">
                 <div class="premium-logo">
                     <div class="logo-ring"></div>
-                    <div class="logo-text">I<strong>H</strong></div>
+                    <div class="logo-text">K<strong>G</strong></div>
                 </div>
                 <span>
-                    <strong>IndiHome Field</strong>
+                    <strong>KedatonGas</strong>
                     <small>Monitor tim lapangan</small>
                 </span>
             </a>
@@ -208,7 +209,11 @@ function typeClass(string $type): string {
                                 <td><?= (int) $job['technician_count'] ?> Orang</td>
                                 <td><strong class="money"><?= rupiah((int) $job['share_amount']) ?></strong></td>
                                 <td style="text-align: right;">
-                                    <a href="job-edit.php?id=<?= $job['id'] ?>" class="text-link" style="font-size: 12px; font-weight: 600;">Edit</a>
+                                    <?php if ($job['pending_request']): ?>
+                                        <span style="font-size: 11px; font-weight: bold; padding: 2px 6px; background: rgba(245,158,11,0.2); color: #f59e0b; border-radius: 4px; border: 1px solid rgba(245,158,11,0.3); display: inline-block; margin-bottom: 4px;">PENDING (<?= strtoupper($job['pending_request']) ?>)</span>
+                                    <?php else: ?>
+                                        <a href="job-edit.php?id=<?= $job['id'] ?>" class="text-link" style="font-size: 12px; font-weight: 600;">Edit</a>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

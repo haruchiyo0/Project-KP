@@ -1,9 +1,9 @@
 -- ====================================================================
--- INDIHOME FIELD - DATABASE SCHEMA (MySQL / MariaDB / phpMyAdmin)
+-- KedatonGas - DATABASE SCHEMA (MySQL / MariaDB / phpMyAdmin)
 -- ====================================================================
 
-CREATE DATABASE IF NOT EXISTS `indihome_field` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `indihome_field`;
+CREATE DATABASE IF NOT EXISTS `KedatonGas_field` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `KedatonGas_field`;
 
 -- 1. TABEL PENGGUNA / AKUN (Users & Role Access)
 CREATE TABLE IF NOT EXISTS `users` (
@@ -87,6 +87,19 @@ CREATE TABLE IF NOT EXISTS `app_settings` (
     `description` VARCHAR(255) DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 8. TABEL PENGAJUAN EDIT/HAPUS (Job Requests)
+CREATE TABLE IF NOT EXISTS `job_requests` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `job_id` INT NOT NULL,
+    `requester_id` INT NOT NULL,
+    `request_type` ENUM('edit', 'delete') NOT NULL,
+    `proposed_data` JSON NULL,
+    `status` ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`job_id`) REFERENCES `jobs`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`requester_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ====================================================================
 -- SEED DATA AWAL (Initial Admin & Technicians & Master Tarif)
 -- ====================================================================
@@ -101,7 +114,7 @@ ON DUPLICATE KEY UPDATE `id`=`id`;
 -- Master Jenis Pekerjaan Default
 INSERT INTO `work_types` (`code`, `name`, `base_tariff`, `description`, `is_active`) VALUES
 ('PDA', 'Pasang Baru PDA', 125000, 'Pekerjaan Pasang Baru PDA', 1),
-('IH', 'IndiHome Standard', 125000, 'Pemasangan Layanan IndiHome', 1),
+('IH', 'KedatonGas Standard', 125000, 'Pemasangan Layanan KedatonGas', 1),
 ('HSI', 'High Speed Internet', 125000, 'Pemasangan Internet HSI', 1),
 ('DATIN', 'Data & Internet Corporate', 125000, 'Layanan Datin Korporat', 1),
 ('MOK', 'Migrasi OK / Perbaikan', 30000, 'Migrasi atau Perbaikan Kabel/Perangkat', 1)

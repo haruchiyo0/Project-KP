@@ -19,65 +19,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $loginSuccess = false;
 
-    if ($user && password_verify($password, $user['password_hash'])) {
-        $loginSuccess = true;
-    } else {
-        // User not found or password incorrect. Try to sync from Sheets.
-        if (defined('GOOGLE_SHEETS_URL') && !empty(GOOGLE_SHEETS_URL)) {
-            try {
-                $ch = curl_init(GOOGLE_SHEETS_URL);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-                $response = curl_exec($ch);
-                curl_close($ch);
-                
-                if ($response) {
-                    $sheetData = json_decode($response, true);
-                    if (isset($sheetData['status']) && $sheetData['status'] === 'success' && isset($sheetData['data'])) {
-                        foreach ($sheetData['data'] as $sheetUser) {
-                            if (strtolower((string)$sheetUser['username']) === $username) {
-                                // If user exists but password/info changed, update local DB
-                                if ($user) {
-                                    $update = $db->prepare('UPDATE users SET name = ?, nik = ?, password_hash = ?, role = ? WHERE username = ?');
-                                    $update->execute([
-                                        $sheetUser['name'], 
-                                        $sheetUser['nik'], 
-                                        password_hash($sheetUser['password'], PASSWORD_DEFAULT), 
-                                        trim(strtolower((string)$sheetUser['role'])) === 'admin' ? 'admin' : 'teknisi',
-                                        $username
-                                    ]);
-                                } else {
-                                    // Insert new user
-                                    $insert = $db->prepare('INSERT INTO users (name, nik, username, password_hash, role, status) VALUES (?, ?, ?, ?, ?, ?)');
-                                    $insert->execute([
-                                        $sheetUser['name'], 
-                                        $sheetUser['nik'], 
-                                        $sheetUser['username'], 
-                                        password_hash($sheetUser['password'], PASSWORD_DEFAULT), 
-                                        trim(strtolower((string)$sheetUser['role'])) === 'admin' ? 'admin' : 'teknisi', 
-                                        'active'
-                                    ]);
-                                }
-                                
-                                // Refetch to login
-                                $statement->execute([$username]);
-                                $user = $statement->fetch();
-                                
-                                // Verify with the freshly synced hash
-                                if ($user && password_verify($password, $user['password_hash'])) {
-                                    $loginSuccess = true;
-                                }
-                                break;
+    // ALWAYS try to sync from Sheets first (Takes ~2 seconds, but guarantees status & passwords are up to date!)
+    if (defined('GOOGLE_SHEETS_URL') && !empty(GOOGLE_SHEETS_URL)) {
+        try {
+            $ch = curl_init(GOOGLE_SHEETS_URL);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            $response = curl_exec($ch);
+            curl_close($ch);
+            
+            if ($response) {
+                $sheetData = json_decode($response, true);
+                if (isset($sheetData['status']) && $sheetData['status'] === 'success' && isset($sheetData['data'])) {
+                    foreach ($sheetData['data'] as $sheetUser) {
+                        if (strtolower((string)$sheetUser['username']) === $username) {
+                            if ($user) {
+                                // Update existing user
+                                $update = $db->prepare('UPDATE users SET name = ?, nik = ?, password_hash = ?, role = ?, status = ? WHERE username = ?');
+                                $update->execute([
+                                    $sheetUser['name'], 
+                                    $sheetUser['nik'], 
+                                    password_hash($sheetUser['password'], PASSWORD_DEFAULT), 
+                                    trim(strtolower((string)$sheetUser['role'])) === 'admin' ? 'admin' : 'teknisi',
+                                    trim(strtolower((string)$sheetUser['status'])) === 'inactive' ? 'inactive' : 'active',
+                                    $username
+                                ]);
+                            } else {
+                                // Insert new user
+                                $insert = $db->prepare('INSERT INTO users (name, nik, username, password_hash, role, status) VALUES (?, ?, ?, ?, ?, ?)');
+                                $insert->execute([
+                                    $sheetUser['name'], 
+                                    $sheetUser['nik'], 
+                                    $username, 
+                                    password_hash($sheetUser['password'], PASSWORD_DEFAULT), 
+                                    trim(strtolower((string)$sheetUser['role'])) === 'admin' ? 'admin' : 'teknisi', 
+                                    trim(strtolower((string)$sheetUser['status'])) === 'inactive' ? 'inactive' : 'active'
+                                ]);
                             }
+                            
+                            // Refetch from DB to get the latest updated data
+                            $statement->execute([$username]);
+                            $user = $statement->fetch();
+                            break;
                         }
                     }
                 }
-            } catch (\Throwable $t) {
-                // Ignore sync errors
             }
+        } catch (\Throwable $t) {
+            // Ignore sync errors and fallback to local DB
         }
+    }
+
+    // Now verify login with the freshest data
+    if ($user && password_verify($password, $user['password_hash'])) {
+        if ($user['status'] === 'inactive') {
+            $error = 'Akun Anda telah dinonaktifkan oleh Pimpinan.';
+        } else {
+            $loginSuccess = true;
+        }
+    } else {
+        if (!$error) $error = 'Username tidak ditemukan atau password salah.';
     }
 
     if ($loginSuccess) {
@@ -101,8 +104,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="IndiHome Field — Sistem pencatatan pekerjaan dan monitoring tim teknisi lapangan.">
-    <title>Login | IndiHome Field</title>
+    <meta name="description" content="KedatonGas — Sistem pencatatan pekerjaan dan monitoring tim teknisi lapangan.">
+    <title>Login | KedatonGas</title>
     <link rel="stylesheet" href="assets/style.css">
     <style>
     /* ===================================================================
@@ -299,10 +302,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="intro-ring"></div>
                 <div class="intro-ring-inner"></div>
                 <div class="intro-ring-outer"></div>
-                <div class="intro-logo-text">I<strong>H</strong></div>
+                <div class="intro-logo-text">K<strong>G</strong></div>
             </div>
 
-            <div class="intro-title">IndiHome Field</div>
+            <div class="intro-title">KedatonGas</div>
             <div class="intro-subtitle">Sistem Pencatatan & Monitoring Lapangan Terpadu</div>
         </div>
 
@@ -317,10 +320,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <section class="login-brand">
             <div class="premium-logo">
                 <div class="logo-ring"></div>
-                <div class="logo-text">I<strong>H</strong></div>
+                <div class="logo-text">K<strong>G</strong></div>
             </div>
             <p class="eyebrow">SISTEM KERJA TEKNISI</p>
-            <h1>IndiHome<br>Field</h1>
+            <h1>KedatonGas</h1>
             <p>Catat pekerjaan lapangan dan pantau rekap pendapatan tim dalam satu platform terpadu.</p>
         </section>
 

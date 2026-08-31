@@ -1,5 +1,5 @@
 /* ===================================================================
-   IndiHome Field — Professional Design System v2
+   KedatonGas — Professional Design System v2
    Theme: Telkom Red (#e60012) with distinct role-based layouts
    =================================================================== */
 
@@ -945,4 +945,48 @@ input.input-filled:not(:focus) { border-color: #a7f3d0; }
 .header-clock .clock-time {
     font-size: 14px; font-weight: 700; font-family: var(--font-mono);
     letter-spacing: 0.02em; line-height: 1;
+}
+
+/* ===================================================================
+   KEDATON GAS AI LOGO OVERRIDES
+   =================================================================== */
+.premium-logo, .brand-logo .logo-icon {
+    background: url('logo.jpg') center/cover no-repeat !important;
+    border: none !important;
+    mix-blend-mode: screen !important; /* Makes the black background transparent! */
+    box-shadow: none !important; 
+    border-radius: 0 !important;
+}
+
+/* Make sidebar logo bigger and glowing */
+.brand .premium-logo {
+    width: 46px !important; 
+    height: 46px !important;
+    margin-left: -4px;
+    filter: drop-shadow(0 0 8px rgba(230,0,18,0.8));
+}
+
+/* Make login logo bigger and glowing */
+.login-brand .premium-logo {
+    width: 86px !important;
+    height: 86px !important;
+    margin-bottom: 24px !important;
+    filter: drop-shadow(0 0 20px rgba(230,0,18,0.8));
+}
+
+.premium-logo .logo-text, .brand-logo .logo-icon {
+    display: none !important;
+}
+
+.intro-rings {
+    background: url('assets/logo.jpg') center/cover no-repeat !important;
+    border-radius: 50%;
+    mix-blend-mode: screen;
+    border: none !important;
+}
+.intro-ring, .intro-ring-inner, .intro-ring-outer {
+    display: none !important; /* Clean up the rings so only the fire glows */
+}
+.intro-logo-text {
+    display: none !important;
 }

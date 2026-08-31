@@ -14,7 +14,8 @@ if ($user['role'] === 'admin') {
     $statement = $db->prepare(
         'SELECT j.*,
             GROUP_CONCAT(CONCAT(jt.technician_name, " (", jt.technician_nik, ")") SEPARATOR " | ") AS technicians,
-            COUNT(jt.id) AS technician_count
+            COUNT(jt.id) AS technician_count,
+            (SELECT request_type FROM job_requests WHERE job_id = j.id AND status = "pending" LIMIT 1) AS pending_request
          FROM jobs j
          LEFT JOIN job_technicians jt ON jt.job_id = j.id
          WHERE j.ps_date >= :start_date AND j.ps_date <= :end_date
@@ -101,8 +102,8 @@ function typeClass(string $type): string {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Dashboard monitoring pekerjaan dan pendapatan tim teknisi IndiHome.">
-    <title>Dashboard | IndiHome Field</title>
+    <meta name="description" content="Dashboard monitoring pekerjaan dan pendapatan tim teknisi KedatonGas.">
+    <title>Dashboard | KedatonGas</title>
     <link rel="stylesheet" href="assets/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -114,7 +115,7 @@ function typeClass(string $type): string {
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
     </button>
     <a class="brand" href="dashboard.php">
-        <div class="premium-logo"><div class="logo-ring"></div><div class="logo-text">I<strong>H</strong></div></div>
+        <div class="premium-logo"><div class="logo-ring"></div><div class="logo-text">K<strong>G</strong></div></div>
     </a>
     <div style="width:40px"></div>
 </div>
@@ -125,10 +126,10 @@ function typeClass(string $type): string {
             <a class="brand" href="dashboard.php">
                 <div class="premium-logo">
                     <div class="logo-ring"></div>
-                    <div class="logo-text">I<strong>H</strong></div>
+                    <div class="logo-text">K<strong>G</strong></div>
                 </div>
                 <span>
-                    <strong>IndiHome Field</strong>
+                    <strong>KedatonGas</strong>
                     <small>Monitor tim lapangan</small>
                 </span>
             </a>
@@ -145,6 +146,16 @@ function typeClass(string $type): string {
                 <a href="reports.php">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="nav-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                     <span class="nav-text">Laporan</span>
+                </a>
+                <?php $pendingCount = get_pending_requests_count($db); ?>
+                <a href="approvals.php">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="nav-icon"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    <span class="nav-text" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                        Persetujuan
+                        <?php if ($pendingCount > 0): ?>
+                            <span style="background: #ef4444; color: white; font-size: 11px; padding: 2px 6px; border-radius: 12px; font-weight: bold;"><?= $pendingCount ?></span>
+                        <?php endif; ?>
+                    </span>
                 </a>
             <?php else: ?>
                 <a href="job-create.php">
@@ -346,7 +357,7 @@ function typeClass(string $type): string {
                     <p class="eyebrow">DATA LENGKAP</p>
                     <h2>Pekerjaan tim bulan ini</h2>
                 </div>
-                <a class="text-link" href="reports.php">Lihat semua →</a>
+                <a class="text-link" href="reports.php">LKGat semua →</a>
             </div>
             <div class="table-wrap">
                 <table>

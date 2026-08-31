@@ -47,6 +47,26 @@ function doPost(e) {
           "message": "Data lama tidak ditemukan untuk diupdate"
         })).setMimeType(ContentService.MimeType.JSON);
       }
+    } else if (data.action === 'delete') {
+      var targetId = data.id;
+      var lastRow = sheet.getLastRow();
+      
+      if (lastRow >= 2) {
+        var ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+        for (var i = 0; i < ids.length; i++) {
+          if (ids[i][0] == targetId) {
+            sheet.deleteRow(i + 2);
+            return ContentService.createTextOutput(JSON.stringify({
+              "status": "success",
+              "message": "Pekerjaan " + targetId + " berhasil dihapus dari Google Sheets"
+            })).setMimeType(ContentService.MimeType.JSON);
+          }
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({ 
+        "status": "error", 
+        "message": "Data pekerjaan tidak ditemukan di Google Sheets"
+      })).setMimeType(ContentService.MimeType.JSON);
     } else {
       // Append new row
       var targetRow = 2;
@@ -100,7 +120,8 @@ function doGet(e) {
           "nik": row[1] ? row[1].toString() : "",
           "username": row[2] ? row[2].toString() : "",
           "password": row[3] ? row[3].toString() : "",
-          "role": row[4] ? row[4].toString().trim().toLowerCase() : "teknisi"
+          "role": row[4] ? row[4].toString().trim().toLowerCase() : "teknisi",
+          "status": row[5] ? row[5].toString().trim().toLowerCase() : "active"
         });
       }
     }
@@ -123,6 +144,22 @@ function onEdit(e) {
 
   var range = e.range;
   var sheet = range.getSheet();
+  if (sheet.getName() === "Users") {
+    var userRow = range.getRow();
+    if (userRow <= 1) return;
+    
+    // Check if column F (Status) was edited
+    if (range.getColumn() === 6) {
+      var username = sheet.getRange(userRow, 3).getValue();
+      var status = sheet.getRange(userRow, 6).getValue();
+      
+      if (username) {
+        sendSyncUserToWeb(username, status);
+      }
+    }
+    return;
+  }
+
   if (sheet.getName() !== "Jobs") return; // Hanya trigger di sheet Jobs
 
   var row = range.getRow();
@@ -144,6 +181,32 @@ function onEdit(e) {
     var customerName = sheet.getRange(row, 3).getValue();
     var status = sheet.getRange(row, 5).getValue();
     sendSyncToWeb("UPDATE", workOrder, customerName, status);
+  }
+}
+
+function sendSyncUserToWeb(username, status) {
+  if (!WEB_API_URL || WEB_API_URL.indexOf("localhost") !== -1) {
+    Logger.log("WEB_API_URL localhost, melewati sync...");
+    return;
+  }
+
+  var payload = {
+    "action": "UPDATE_USER",
+    "username": username,
+    "status": status || 'active'
+  };
+
+  var options = {
+    "method": "post",
+    "contentType": "application/json",
+    "payload": JSON.stringify(payload),
+    "muteHttpExceptions": true
+  };
+
+  try {
+    UrlFetchApp.fetch(WEB_API_URL, options);
+  } catch (err) {
+    Logger.log(err.toString());
   }
 }
 
